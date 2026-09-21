@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
@@ -56,3 +57,32 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+=======
+# MonolithLaravelPOS
+
+A simple monolithic inventory and sales management system built with Laravel.
+
+The system supports:
+
+- Branch and store management
+- Product management
+- Supplier management
+- Stock receiving
+- Sales recording
+- Stock transfers between stores
+- Stock movement history
+- Role-based access control
+- Basic stock and sales reporting
+
+## Technology Stack
+
+- Laravel
+- MySQL / MariaDB
+- Blade
+- JavaScript
+- Bootstrap
+
+## Setup
+
+Setup instructions will be documented as the project develops.
+>>>>>>> 5e83cb42ff517e97254e2fd6cae65bc4786f54f6
