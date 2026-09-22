@@ -53,7 +53,7 @@
 
                         <div class="flex items-end">
                             <div class="text-sm text-slate-500">
-                                <span id="stock-status"></span>
+                                <span id="stock-status">Loading stock…</span>
                             </div>
                         </div>
                     </div>
@@ -61,15 +61,32 @@
 
                 {{-- Line items --}}
                 <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Search products</label>
+                        <div class="relative">
+                            <input type="text" id="product-search" autocomplete="off"
+                                   placeholder="Type a product name or SKU…"
+                                   class="w-full border-slate-300 rounded text-sm pl-9 pr-3">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Press Enter to add the highlighted product, or use the picker below and click Add Item.
+                        </p>
+                    </div>
+
                     <div class="flex items-end gap-3">
                         <div class="flex-1">
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Add product</label>
-                            <select id="product-picker" class="w-full border-slate-300 rounded text-sm">
-                                <option value="">Select a product to add…</option>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Product</label>
+                            <select id="product-picker" size="5" class="w-full border-slate-300 rounded text-sm">
+                                <option value="">Loading…</option>
                             </select>
                         </div>
                         <button type="button" id="add-row"
-                                class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded hover:bg-blue-800">
+                                class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded hover:bg-blue-800 self-end">
                             Add Item
                         </button>
                     </div>
@@ -120,162 +137,206 @@
     </div>
 
     <script>
-    $(function () {
-        const state = {
-            products: [],
-            rowIndex: 0,
-        };
+    (function ($) {
+        $(function () {
+            const state = {
+                products: [],
+                rowIndex: 0,
+            };
 
-        function money(n) {
-            return 'KES ' + Number(n).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function refreshProductPicker() {
-            const picker = $('#product-picker');
-            picker.html('<option value="">Select a product to add…</option>');
-            state.products.forEach(p => {
-                picker.append(
-                    $('<option>')
-                        .val(p.id)
-                        .attr('data-price', p.selling_price)
-                        .attr('data-name', p.name)
-                        .attr('data-sku', p.sku)
-                        .attr('data-unit', p.unit)
-                        .attr('data-available', p.available)
-                        .text(p.name + ' (' + p.sku + ') — KES ' + p.selling_price.toFixed(2) + ' · ' + p.available + ' ' + p.unit + ' available')
-                );
-            });
-        }
-
-        function loadStock(storeId) {
-            if (!storeId) return;
-            const url = window.saleCreateConfig.stockEndpointTemplate.replace('__STORE__', storeId);
-            $('#stock-status').text('Loading stock…');
-            $.getJSON(url, data => {
-                state.products = data.products;
-                refreshProductPicker();
-                $('#stock-status').text(state.products.length + ' product' + (state.products.length === 1 ? '' : 's') + ' in stock');
-            }).fail(() => {
-                $('#stock-status').text('Could not load stock for this store.');
-            });
-        }
-
-        function addRow() {
-            const $opt = $('#product-picker').find('option:selected');
-            if (!$opt.val()) {
-                return;
+            function money(n) {
+                return 'KES ' + Number(n).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
 
-            const id = $opt.val();
-            const name = $opt.data('name');
-            const sku = $opt.data('sku');
-            const price = parseFloat($opt.data('price')) || 0;
-            const unit = $opt.data('unit');
-            const available = parseInt($opt.data('available')) || 0;
+            function filteredProducts(term) {
+                if (!term) return state.products;
+                const q = term.toLowerCase();
+                return state.products.filter(p =>
+                    p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
+                );
+            }
 
-            // Remove the "no items" placeholder if this is the first row.
-            $('#empty-row').remove();
+            function refreshProductPicker(term) {
+                const picker = $('#product-picker');
+                const matches = filteredProducts(term);
 
-            const idx = state.rowIndex++;
+                if (matches.length === 0) {
+                    picker.html('<option value="">No products match "' + (term || '') + '"</option>');
+                    return;
+                }
 
-            const row = $('<tr>').addClass('border-t border-slate-100').attr('data-available', available).attr('data-unit', unit);
-            row.append(
-                '<td class="px-4 py-2 text-slate-800">' + name + ' <span class="text-slate-400 text-xs ml-1">' + sku + '</span>' +
-                '<input type="hidden" name="items[' + idx + '][product_id]" value="' + id + '"></td>'
-            );
-            row.append(
-                '<td class="px-4 py-2 text-right">' +
-                '<input type="number" name="items[' + idx + '][quantity]" value="1" min="1" required ' +
-                'class="w-20 text-right border-slate-300 rounded text-sm qty"></td>'
-            );
-            row.append(
-                '<td class="px-4 py-2 text-right">' +
-                '<input type="number" name="items[' + idx + '][unit_price]" value="' + price.toFixed(2) + '" step="0.01" readonly ' +
-                'class="w-28 text-right bg-slate-50 border-slate-300 rounded text-sm price"></td>'
-            );
-            row.append('<td class="px-4 py-2 text-right font-medium line-total">' + money(price) + '</td>');
-            row.append('<td class="px-4 py-2 text-center"><button type="button" class="text-red-600 hover:text-red-800 remove-row">×</button></td>');
+                let html = '';
+                matches.forEach(p => {
+                    html += '<option value="' + p.id + '"'
+                        + ' data-price="' + p.selling_price + '"'
+                        + ' data-name="' + p.name + '"'
+                        + ' data-sku="' + p.sku + '"'
+                        + ' data-unit="' + p.unit + '"'
+                        + ' data-available="' + p.available + '">'
+                        + p.name + ' (' + p.sku + ') — KES ' + p.selling_price.toFixed(2)
+                        + ' · ' + p.available + ' ' + p.unit + ' available'
+                        + '</option>';
+                });
+                picker.html(html);
 
-            $('#items-body').append(row);
+                // If there's a search term and exactly one match, select it.
+                if (term && matches.length === 1) {
+                    picker.val(matches[0].id);
+                }
+            }
 
-            $('#product-picker').val('');
-            recalculate();
-        }
+            function loadStock(storeId) {
+                if (!storeId) return;
+                const url = window.saleCreateConfig.stockEndpointTemplate.replace('__STORE__', storeId);
+                $('#stock-status').text('Loading stock…');
+                $('#product-picker').html('<option value="">Loading…</option>');
 
-        function recalculate() {
-            let total = 0;
-            let warning = null;
+                $.getJSON(url, function (data) {
+                    state.products = data.products || [];
+                    refreshProductPicker('');
+                    if (state.products.length === 0) {
+                        $('#stock-status').text('No products currently in stock at this store.');
+                    } else {
+                        $('#stock-status').text(state.products.length + ' product' + (state.products.length === 1 ? '' : 's') + ' in stock');
+                    }
+                }).fail(function () {
+                    $('#stock-status').text('Could not load stock for this store.');
+                    $('#product-picker').html('<option value="">Failed to load</option>');
+                });
+            }
 
-            $('#items-body tr').each(function () {
-                const $row = $(this);
-                if ($row.attr('id') === 'empty-row') return;
+            function addRow() {
+                const $opt = $('#product-picker').find('option:selected');
+                if (!$opt.val()) {
+                    return;
+                }
 
-                const qty = parseInt($row.find('.qty').val()) || 0;
-                const price = parseFloat($row.find('.price').val()) || 0;
-                const available = parseInt($row.attr('data-available')) || 0;
-                const unit = $row.attr('data-unit') || '';
+                const id = $opt.val();
+                const name = $opt.data('name');
+                const sku = $opt.data('sku');
+                const price = parseFloat($opt.data('price')) || 0;
+                const unit = $opt.data('unit');
+                const available = parseInt($opt.data('available')) || 0;
 
-                const lineTotal = qty * price;
-                $row.find('.line-total').text(money(lineTotal));
-                total += lineTotal;
+                $('#empty-row').remove();
 
-                if (qty > available) {
-                    $row.addClass('bg-amber-50');
-                    warning = warning || ('One or more rows exceed available stock. The server will reject this sale.');
+                const idx = state.rowIndex++;
+
+                const row = $('<tr>')
+                    .addClass('border-t border-slate-100')
+                    .attr('data-available', available)
+                    .attr('data-unit', unit);
+
+                row.append(
+                    '<td class="px-4 py-2 text-slate-800">' + name +
+                    ' <span class="text-slate-400 text-xs ml-1">' + sku + '</span>' +
+                    '<input type="hidden" name="items[' + idx + '][product_id]" value="' + id + '"></td>'
+                );
+                row.append(
+                    '<td class="px-4 py-2 text-right">' +
+                    '<input type="number" name="items[' + idx + '][quantity]" value="1" min="1" required ' +
+                    'class="w-20 text-right border-slate-300 rounded text-sm qty"></td>'
+                );
+                row.append(
+                    '<td class="px-4 py-2 text-right">' +
+                    '<input type="number" name="items[' + idx + '][unit_price]" value="' + price.toFixed(2) + '" step="0.01" readonly ' +
+                    'class="w-28 text-right bg-slate-50 border-slate-300 rounded text-sm price"></td>'
+                );
+                row.append('<td class="px-4 py-2 text-right font-medium line-total">' + money(price) + '</td>');
+                row.append('<td class="px-4 py-2 text-center"><button type="button" class="text-red-600 hover:text-red-800 remove-row">×</button></td>');
+
+                $('#items-body').append(row);
+
+                // Reset the picker and focus the search so the operator can type the next item immediately.
+                $('#product-search').val('').focus();
+                refreshProductPicker('');
+
+                recalculate();
+            }
+
+            function recalculate() {
+                let total = 0;
+                let warning = null;
+
+                $('#items-body tr').each(function () {
+                    const $row = $(this);
+                    if ($row.attr('id') === 'empty-row') return;
+
+                    const qty = parseInt($row.find('.qty').val()) || 0;
+                    const price = parseFloat($row.find('.price').val()) || 0;
+                    const available = parseInt($row.attr('data-available')) || 0;
+
+                    const lineTotal = qty * price;
+                    $row.find('.line-total').text(money(lineTotal));
+                    total += lineTotal;
+
+                    if (qty > available) {
+                        $row.addClass('bg-amber-50');
+                        warning = warning || 'One or more rows exceed available stock. The server will reject this sale.';
+                    } else {
+                        $row.removeClass('bg-amber-50');
+                    }
+                });
+
+                $('#grand-total').text(money(total));
+
+                if (warning) {
+                    $('#stock-warning').text(warning).removeClass('hidden');
                 } else {
-                    $row.removeClass('bg-amber-50');
+                    $('#stock-warning').addClass('hidden');
+                }
+            }
+
+            // Initial load
+            loadStock($('#store_id').val());
+
+            // Store change reloads stock and clears items
+            $('#store_id').on('change', function () {
+                $('#items-body').empty().append(
+                    '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Add a product to begin.</td></tr>'
+                );
+                state.rowIndex = 0;
+                recalculate();
+                loadStock($(this).val());
+            });
+
+            // Search filters the picker
+            $('#product-search').on('input', function () {
+                refreshProductPicker($(this).val().trim());
+            });
+
+            // Enter in the search field adds the selected product
+            $('#product-search').on('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if ($('#product-picker').val()) {
+                        addRow();
+                    }
                 }
             });
 
-            $('#grand-total').text(money(total));
+            $('#add-row').on('click', addRow);
 
-            if (warning) {
-                $('#stock-warning').text(warning).removeClass('hidden');
-            } else {
-                $('#stock-warning').addClass('hidden');
-            }
-        }
+            $('#items-body').on('input', '.qty', recalculate);
 
-        // Initial load
-        loadStock($('#store_id').val());
+            $('#items-body').on('click', '.remove-row', function () {
+                $(this).closest('tr').remove();
+                if ($('#items-body tr').not('#empty-row').length === 0 && $('#empty-row').length === 0) {
+                    $('#items-body').append(
+                        '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Add a product to begin.</td></tr>'
+                    );
+                }
+                recalculate();
+            });
 
-        // Store changes reload stock
-        $('#store_id').on('change', function () {
-            // Clear existing rows — they belong to the old store's stock.
-            $('#items-body').empty().append(
-                '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Add a product to begin.</td></tr>'
-            );
-            state.rowIndex = 0;
-            recalculate();
-            loadStock($(this).val());
+            $('#sale-form').on('submit', function (e) {
+                if ($('#items-body tr').not('#empty-row').length === 0) {
+                    e.preventDefault();
+                    alert('Add at least one product before recording the sale.');
+                    return false;
+                }
+            });
         });
-
-        $('#add-row').on('click', addRow);
-        $('#product-picker').on('change', function () {
-            // Convenience: adding via the picker's change event is off —
-            // we require an explicit "Add Item" click so accidental
-            // selections don't create rows. But we do highlight nothing here.
-        });
-
-        $('#items-body').on('input', '.qty', recalculate);
-        $('#items-body').on('click', '.remove-row', function () {
-            $(this).closest('tr').remove();
-            if ($('#items-body tr').length === 0) {
-                $('#items-body').append(
-                    '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Add a product to begin.</td></tr>'
-                );
-            }
-            recalculate();
-        });
-
-        // Prevent submitting an empty sale.
-        $('#sale-form').on('submit', function (e) {
-            if ($('#items-body tr').not('#empty-row').length === 0) {
-                e.preventDefault();
-                alert('Add at least one product before recording the sale.');
-                return false;
-            }
-        });
-    });
+    })(window.jQuery);
     </script>
 </x-app-layout>
