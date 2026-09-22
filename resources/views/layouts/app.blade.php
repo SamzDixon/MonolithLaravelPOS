@@ -22,9 +22,9 @@
         <div x-data="{
                 sidebarOpen: false,
                 openStock: {{ request()->routeIs('stock-levels.*') || request()->routeIs('stock-movements.*') ? 'true' : 'false' }},
+                openSales: {{ request()->routeIs('sales.*') ? 'true' : 'false' }},
                 openSetup: {{ request()->routeIs('branches.*') || request()->routeIs('stores.*') || request()->routeIs('products.*') || request()->routeIs('users.*') ? 'true' : 'false' }}
-                openSales: {{ request()->routeIs('sales.*') ? 'true' : 'false' }}
-             }"
+            }"
              @keydown.escape.window="sidebarOpen = false"
              class="min-h-screen">
 
