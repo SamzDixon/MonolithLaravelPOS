@@ -67,15 +67,37 @@
             </div>
         @endif
 
-        {{-- Sales --}}
-        <a href="{{ route('sales.index') }}"
-           class="flex items-center gap-3 px-3 py-2 rounded transition {{ request()->routeIs('sales.*') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800/60 hover:text-white' }}">
-            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-            <span>Sales</span>
-        </a>
+        {{-- Sales (expandable) --}}
+        <div>
+            <button type="button" @click="openSales = !openSales"
+                    class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded transition {{ request()->routeIs('sales.*') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800/60 hover:text-white' }}">
+                <span class="flex items-center gap-3">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    <span>Sales</span>
+                </span>
+                <svg :class="openSales ? 'rotate-90' : ''"
+                    class="w-4 h-4 transition-transform duration-150"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+
+            <div x-show="openSales" x-collapse class="mt-1 ml-4 pl-3 border-l border-blue-800 space-y-1">
+                @can('create', App\Models\Sale::class)
+                    <a href="{{ route('sales.create') }}"
+                    class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('sales.create') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
+                        POS
+                    </a>
+                @endcan
+                <a href="{{ route('sales.index') }}"
+                class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('sales.index') || request()->routeIs('sales.show') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
+                    Sales History
+                </a>
+            </div>
+        </div>
 
         {{-- Transfers --}}
         <a href="{{ route('transfers.index') }}"
