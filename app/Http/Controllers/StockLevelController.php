@@ -86,6 +86,57 @@ class StockLevelController extends Controller
         ]);
     }
 
+    public function search(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+        $storeIds = $this->visibleStoreIds($user);
+
+        $query = StockLevel::query()
+            ->whereIn('stock_levels.store_id', $storeIds)
+            ->join('products', 'products.id', '=', 'stock_levels.product_id')
+            ->join('stores', 'stores.id', '=', 'stock_levels.store_id')
+            ->select('stock_levels.*')
+            ->with(['store:id,name', 'product:id,name,sku,unit,reorder_level,cost_price']);
+
+        if ($storeId = $request->input('store_id')) {
+            if (in_array((int) $storeId, $storeIds, true)) {
+                $query->where('stock_levels.store_id', $storeId);
+            }
+        }
+
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('products.name', 'like', "%{$search}%")
+                ->orWhere('products.sku', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->boolean('low_stock')) {
+            $query->whereColumn('stock_levels.quantity', '<=', 'products.reorder_level')
+                ->where('products.reorder_level', '>', 0);
+        }
+
+        $levels = $query
+            ->orderBy('stores.name')
+            ->orderBy('products.name')
+            ->paginate(30);
+
+        return response()->json([
+            'count' => $levels->total(),
+            'rows' => $levels->map(fn ($level) => [
+                'id' => $level->id,
+                'store_name' => $level->store->name,
+                'sku' => $level->product->sku,
+                'product_name' => $level->product->name,
+                'unit' => $level->product->unit,
+                'quantity' => (int) $level->quantity,
+                'reorder_level' => (int) $level->product->reorder_level,
+                'cost_price' => (float) $level->product->cost_price,
+            ]),
+        ]);
+    }
+
     private function visibleStoreIds($user): array
     {
         if ($user->isAdmin()) {

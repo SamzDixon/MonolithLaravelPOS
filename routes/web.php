@@ -36,9 +36,14 @@ Route::middleware(['auth', 'active.user'])->group(function () {
     // Admin and branch manager: catalogue and read-only stock views.
     Route::middleware('role:admin,branch_manager')->group(function () {
         Route::resource('stores', StoreController::class);
+        
         Route::get('products/search', [ProductController::class, 'search'])->name('products.search');
         Route::resource('products', ProductController::class);
+
+        Route::get('stock-levels/search', [StockLevelController::class, 'search'])->name('stock-levels.search');
         Route::get('stock-levels', [StockLevelController::class, 'index'])->name('stock-levels.index');
+
+        Route::get('stock-movements/search', [StockMovementController::class, 'search'])->name('stock-movements.search');
         Route::get('stock-movements', [StockMovementController::class, 'index'])->name('stock-movements.index');
     });
 

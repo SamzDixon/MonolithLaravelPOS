@@ -75,6 +75,59 @@ class StockMovementController extends Controller
         ]);
     }
 
+    public function search(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+        $storeIds = $this->visibleStoreIds($user);
+
+        $query = StockMovement::query()
+            ->whereIn('stock_movements.store_id', $storeIds)
+            ->with(['store:id,name', 'product:id,name,sku', 'user:id,name']);
+
+        if ($storeId = $request->input('store_id')) {
+            if (in_array((int) $storeId, $storeIds, true)) {
+                $query->where('store_id', $storeId);
+            }
+        }
+
+        $type = $request->input('type');
+        if ($type && in_array($type, self::TYPES, true)) {
+            $query->where('type', $type);
+        }
+
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
+            $query->whereHas('product', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
+        if ($from = $request->input('from')) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $request->input('to')) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $movements = $query->latest('id')->paginate(30);
+
+        return response()->json([
+            'count' => $movements->total(),
+            'rows' => $movements->map(fn ($m) => [
+                'id' => $m->id,
+                'created_at' => $m->created_at->format('d M Y, H:i'),
+                'store_name' => $m->store->name,
+                'product_name' => $m->product->name,
+                'sku' => $m->product->sku,
+                'type' => $m->type,
+                'quantity_delta' => (int) $m->quantity_delta,
+                'user_name' => $m->user->name,
+                'notes' => $m->notes,
+            ]),
+        ]);
+    }
+
     private function visibleStoreIds($user): array
     {
         if ($user->isAdmin()) {
