@@ -9,20 +9,26 @@ A monolithic inventory and sales management system for KK Wholesalers, built wit
 The system supports the KK Wholesalers scenario from the brief: two branches, one with a single store and the other with two stores, selling wholesale products and moving stock between locations as needed.
 
 **Implemented:**
-- Authentication with three roles: `admin`, `branch_manager`, `store_manager`
-- Branch management (create, edit, deactivate, delete)
-- Store management scoped to branches
-- Product catalogue with cost price, selling price, and reorder levels
-- Stock levels per store, backed by an immutable movement ledger
-- Sales recording with atomic stock decrement
-- Stock transfers with a dispatch/receive lifecycle
-- Dashboard with stock value, sales today, low-stock alerts, recent movements
-- Role-based authorization enforced via policies
 
-**Planned (see Limitations):**
-- Product, user, stock level, and stock movement Blade views
-- Reporting screens (sales by period, stock turnover)
-- CSV export
+- Authentication with three roles: `admin`, `branch_manager`, `store_manager`. Public registration is disabled — users are created by administrators.
+- Branch management: create, edit, deactivate, soft-delete.
+- Store management scoped to branches.
+- Product catalogue with SKU, cost price, selling price, reorder level, and margin display.
+- User management with role-conditional forms (branch and store fields appear only when relevant).
+- Stock levels per store, backed by an immutable movement ledger.
+- Sales recording with atomic stock decrement, line-item form, live stock check, and per-item pricing snapshots.
+- Void sales: reverses stock and records compensating ledger entries; only admins and branch managers may void.
+- Stock transfers with a three-state lifecycle (`pending → dispatched → received`) and a `cancelled` terminal state.
+- Receive form with per-line quantity confirmation — corrections for damaged or short deliveries are recorded against the ledger.
+- Dashboard with stock value, sales today, low-stock alerts, and recent movements.
+- Live filtering on stock levels, stock movements, and sales.
+- Role-based authorization enforced via policies.
+
+**Deferred (see Limitations):**
+
+- Reporting screens (sales by period, top-selling products, stock turnover).
+- CSV or PDF export.
+- Nightly reconciliation of `stock_levels` from the ledger.
 
 ---
 
@@ -33,7 +39,7 @@ The system supports the KK Wholesalers scenario from the brief: two branches, on
 - **MySQL / MariaDB** — primary database (InnoDB for transactions)
 - **Blade** — server-rendered views
 - **Tailwind CSS** — styling (via Laravel Breeze)
-- **Alpine.js** — small interactive components (toasts, modals, sidebar, line-item forms)
+- **Alpine.js** — small interactive components (toasts, modals, sidebar, live filters)
 - **jQuery** — sale and transfer line-item manipulation
 - **Vite** — asset bundling
 
@@ -54,8 +60,8 @@ The system supports the KK Wholesalers scenario from the brief: two branches, on
 
 ```bash
 # 1. Clone the repository
-git clone git@github.com:<your-username>/retailpay.git
-cd retailpay
+git clone git@github.com:SamzDixon/MonolithLaravelPOS.git
+cd MonolithLaravelPOS
 
 # 2. Install PHP dependencies
 composer install
