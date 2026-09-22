@@ -7,72 +7,88 @@
 
     @include('components.live-filter')
 
+    <script>
+    window.stockMovementsConfig = {
+        endpoint: {{ Illuminate\Support\Js::from(route('stock-movements.search')) }},
+        filters: {{ Illuminate\Support\Js::from([
+            'store_id' => (string) ($filters['store_id'] ?? ''),
+            'type' => (string) ($filters['type'] ?? ''),
+            'search' => (string) ($filters['search'] ?? ''),
+            'from' => (string) ($filters['from'] ?? ''),
+            'to' => (string) ($filters['to'] ?? ''),
+        ]) }},
+        count: {{ $movements->total() }},
+    };
+
+    function stockMovementsPage(config) {
+        return {
+            ...liveFilter({
+                endpoint: config.endpoint,
+                initialFilters: config.filters,
+                immediateKeys: ['store_id', 'type', 'from', 'to'],
+            }),
+
+            init() {
+                this.count = config.count;
+                this.$watch('filters.store_id', () => this.onFilterChange('store_id'));
+                this.$watch('filters.type', () => this.onFilterChange('type'));
+                this.$watch('filters.search', () => this.onFilterChange('search'));
+                this.$watch('filters.from', () => this.onFilterChange('from'));
+                this.$watch('filters.to', () => this.onFilterChange('to'));
+            },
+
+            render(rows) {
+                const tbody = document.getElementById('movements-body');
+                if (rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="px-5 py-12 text-center text-slate-500">No stock movements match your filters.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(r => this.rowHtml(r)).join('');
+            },
+
+            rowHtml(r) {
+                const typeMap = {
+                    opening: ['Opening', 'bg-slate-100 text-slate-700 border-slate-200'],
+                    sale: ['Sale', 'bg-blue-50 text-blue-800 border-blue-200'],
+                    transfer_in: ['Transfer In', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
+                    transfer_out: ['Transfer Out', 'bg-amber-50 text-amber-800 border-amber-200'],
+                    adjustment: ['Adjustment', 'bg-slate-100 text-slate-700 border-slate-200'],
+                };
+                const typeInfo = typeMap[r.type] || [r.type, 'bg-slate-100 text-slate-600 border-slate-200'];
+                const label = typeInfo[0];
+                const classes = typeInfo[1];
+
+                let delta;
+                if (r.quantity_delta > 0) {
+                    delta = '<span class="text-emerald-600">+' + r.quantity_delta.toLocaleString() + '</span>';
+                } else {
+                    delta = '<span class="text-red-600">' + r.quantity_delta.toLocaleString() + '</span>';
+                }
+
+                const notes = r.notes ? this.escape(r.notes) : '—';
+
+                return '<tr class="border-t border-slate-100 hover:bg-slate-50">'
+                    + '<td class="px-5 py-3 text-slate-600 text-xs whitespace-nowrap">' + this.escape(r.created_at) + '</td>'
+                    + '<td class="px-5 py-3 text-slate-700">' + this.escape(r.store_name) + '</td>'
+                    + '<td class="px-5 py-3 text-slate-800">' + this.escape(r.product_name) + '<span class="text-slate-400 text-xs ml-1">' + this.escape(r.sku) + '</span></td>'
+                    + '<td class="px-5 py-3 text-center"><span class="inline-block px-2 py-0.5 text-xs font-medium border rounded ' + classes + '">' + label + '</span></td>'
+                    + '<td class="px-5 py-3 text-right font-medium whitespace-nowrap">' + delta + '</td>'
+                    + '<td class="px-5 py-3 text-slate-600">' + this.escape(r.user_name) + '</td>'
+                    + '<td class="px-5 py-3 text-slate-500 text-xs">' + notes + '</td>'
+                    + '</tr>';
+            },
+        };
+    }
+    </script>
+
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4"
-             x-data="{
-                ...liveFilter({
-                    endpoint: '{{ route('stock-movements.search') }}',
-                    initialFilters: {
-                        store_id: '{{ $filters['store_id'] ?? '' }}',
-                        type: '{{ $filters['type'] ?? '' }}',
-                        search: '{{ $filters['search'] ?? '' }}',
-                        from: '{{ $filters['from'] ?? '' }}',
-                        to: '{{ $filters['to'] ?? '' }}',
-                    },
-                    immediateKeys: ['store_id', 'type', 'from', 'to'],
-                }),
-                init() {
-                    this.count = {{ $movements->total() }};
-                    this.$watch('filters.store_id', () => this.onFilterChange('store_id'));
-                    this.$watch('filters.type', () => this.onFilterChange('type'));
-                    this.$watch('filters.search', () => this.onFilterChange('search'));
-                    this.$watch('filters.from', () => this.onFilterChange('from'));
-                    this.$watch('filters.to', () => this.onFilterChange('to'));
-                },
-                render(rows) {
-                    const tbody = document.getElementById('movements-body');
-                    if (rows.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-12 text-center text-slate-500">No stock movements match your filters.</td></tr>`;
-                        return;
-                    }
-                    tbody.innerHTML = rows.map(r => this.rowHtml(r)).join('');
-                },
-                rowHtml(r) {
-                    const typeLabels = {
-                        opening: ['Opening', 'bg-slate-100 text-slate-700 border-slate-200'],
-                        sale: ['Sale', 'bg-blue-50 text-blue-800 border-blue-200'],
-                        transfer_in: ['Transfer In', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
-                        transfer_out: ['Transfer Out', 'bg-amber-50 text-amber-800 border-amber-200'],
-                        adjustment: ['Adjustment', 'bg-slate-100 text-slate-700 border-slate-200'],
-                    };
-                    const [label, classes] = typeLabels[r.type] || [r.type, 'bg-slate-100 text-slate-600 border-slate-200'];
-
-                    const delta = r.quantity_delta > 0
-                        ? `<span class="text-emerald-600">+${r.quantity_delta.toLocaleString()}</span>`
-                        : `<span class="text-red-600">${r.quantity_delta.toLocaleString()}</span>`;
-
-                    return `
-                        <tr class="border-t border-slate-100 hover:bg-slate-50">
-                            <td class="px-5 py-3 text-slate-600 text-xs whitespace-nowrap">${this.escape(r.created_at)}</td>
-                            <td class="px-5 py-3 text-slate-700">${this.escape(r.store_name)}</td>
-                            <td class="px-5 py-3 text-slate-800">
-                                ${this.escape(r.product_name)}
-                                <span class="text-slate-400 text-xs ml-1">${this.escape(r.sku)}</span>
-                            </td>
-                            <td class="px-5 py-3 text-center">
-                                <span class="inline-block px-2 py-0.5 text-xs font-medium border rounded ${classes}">${label}</span>
-                            </td>
-                            <td class="px-5 py-3 text-right font-medium whitespace-nowrap">${delta}</td>
-                            <td class="px-5 py-3 text-slate-600">${this.escape(r.user_name)}</td>
-                            <td class="px-5 py-3 text-slate-500 text-xs">${this.escape(r.notes || '—')}</td>
-                        </tr>`;
-                },
-             }">
+             x-data="stockMovementsPage(window.stockMovementsConfig)">
 
             {{-- Filters --}}
             <form method="GET" action="{{ route('stock-movements.index') }}" autocomplete="off"
                   @submit.prevent="run()"
-                  class="bg-white border border-slate-200 rounded p-4 space-y-3">
+                  class="bg-white border border-slate-200 rounded p-4">
                 <div class="flex flex-wrap gap-3 items-end">
                     <div class="flex-1 min-w-[160px]">
                         <label class="block text-xs font-medium text-slate-600 mb-1">Store</label>

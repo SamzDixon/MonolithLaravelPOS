@@ -7,63 +7,78 @@
 
     @include('components.live-filter')
 
+    <script>
+    window.stockLevelsConfig = {
+        endpoint: {{ Illuminate\Support\Js::from(route('stock-levels.search')) }},
+        filters: {{ Illuminate\Support\Js::from([
+            'store_id' => (string) ($filters['store_id'] ?? ''),
+            'search' => (string) ($filters['search'] ?? ''),
+            'low_stock' => (bool) ($filters['low_stock'] ?? false),
+        ]) }},
+        count: {{ $levels->total() }},
+    };
+
+    function stockLevelsPage(config) {
+        return {
+            ...liveFilter({
+                endpoint: config.endpoint,
+                initialFilters: config.filters,
+                immediateKeys: ['store_id', 'low_stock'],
+            }),
+
+            init() {
+                this.count = config.count;
+                this.$watch('filters.store_id', () => this.onFilterChange('store_id'));
+                this.$watch('filters.search', () => this.onFilterChange('search'));
+                this.$watch('filters.low_stock', () => this.onFilterChange('low_stock'));
+            },
+
+            render(rows) {
+                const tbody = document.getElementById('stock-levels-body');
+                if (rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="px-5 py-12 text-center text-slate-500">No stock records match your filters.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(r => this.rowHtml(r)).join('');
+            },
+
+            rowHtml(r) {
+                const isEmpty = r.quantity === 0;
+                const isLow = r.reorder_level > 0 && r.quantity <= r.reorder_level;
+                const value = r.quantity * r.cost_price;
+
+                const qtyClass = isEmpty ? 'text-red-600' : (isLow ? 'text-amber-600' : 'text-slate-900');
+
+                let status;
+                if (isEmpty) {
+                    status = '<span class="inline-block px-2 py-0.5 text-xs font-medium border rounded bg-red-50 text-red-700 border-red-200">Out of stock</span>';
+                } else if (isLow) {
+                    status = '<span class="inline-block px-2 py-0.5 text-xs font-medium border rounded bg-amber-50 text-amber-800 border-amber-200">Low</span>';
+                } else {
+                    status = '<span class="inline-block px-2 py-0.5 text-xs font-medium border rounded bg-emerald-50 text-emerald-800 border-emerald-200">Healthy</span>';
+                }
+
+                const reorder = r.reorder_level > 0 ? r.reorder_level.toLocaleString() : '—';
+
+                return '<tr class="border-t border-slate-100 hover:bg-slate-50">'
+                    + '<td class="px-5 py-3 text-slate-700">' + this.escape(r.store_name) + '</td>'
+                    + '<td class="px-5 py-3 text-slate-500 font-mono text-xs">' + this.escape(r.sku) + '</td>'
+                    + '<td class="px-5 py-3 font-medium text-slate-900">' + this.escape(r.product_name) + '</td>'
+                    + '<td class="px-5 py-3 text-right font-medium ' + qtyClass + '">' + r.quantity.toLocaleString() + '<span class="text-slate-400 text-xs ml-1">' + this.escape(r.unit) + '</span></td>'
+                    + '<td class="px-5 py-3 text-right text-slate-500">' + reorder + '</td>'
+                    + '<td class="px-5 py-3 text-right text-slate-700">' + value.toFixed(2) + '</td>'
+                    + '<td class="px-5 py-3 text-center">' + status + '</td>'
+                    + '</tr>';
+            },
+        };
+    }
+    </script>
+
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4"
-             x-data="{
-                ...liveFilter({
-                    endpoint: '{{ route('stock-levels.search') }}',
-                    initialFilters: {
-                        store_id: '{{ $filters['store_id'] ?? '' }}',
-                        search: '{{ $filters['search'] ?? '' }}',
-                        low_stock: {{ $filters['low_stock'] ? 'true' : 'false' }},
-                    },
-                    immediateKeys: ['store_id', 'low_stock'],
-                }),
-                init() {
-                    this.count = {{ $levels->total() }};
-                    this.$watch('filters.store_id', () => this.onFilterChange('store_id'));
-                    this.$watch('filters.search', () => this.onFilterChange('search'));
-                    this.$watch('filters.low_stock', () => this.onFilterChange('low_stock'));
-                },
-                render(rows) {
-                    const tbody = document.getElementById('stock-levels-body');
-                    if (rows.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-12 text-center text-slate-500">No stock records match your filters.</td></tr>`;
-                        return;
-                    }
-                    tbody.innerHTML = rows.map(r => this.rowHtml(r)).join('');
-                },
-                rowHtml(r) {
-                    const isEmpty = r.quantity === 0;
-                    const isLow = r.reorder_level > 0 && r.quantity <= r.reorder_level;
-                    const value = r.quantity * r.cost_price;
+             x-data="stockLevelsPage(window.stockLevelsConfig)">
 
-                    const qtyClass = isEmpty ? 'text-red-600' : (isLow ? 'text-amber-600' : 'text-slate-900');
-                    const status = isEmpty
-                        ? '<span class="inline-block px-2 py-0.5 text-xs font-medium border rounded bg-red-50 text-red-700 border-red-200">Out of stock</span>'
-                        : isLow
-                            ? '<span class="inline-block px-2 py-0.5 text-xs font-medium border rounded bg-amber-50 text-amber-800 border-amber-200">Low</span>'
-                            : '<span class="inline-block px-2 py-0.5 text-xs font-medium border rounded bg-emerald-50 text-emerald-800 border-emerald-200">Healthy</span>';
-
-                    return `
-                        <tr class="border-t border-slate-100 hover:bg-slate-50">
-                            <td class="px-5 py-3 text-slate-700">${this.escape(r.store_name)}</td>
-                            <td class="px-5 py-3 text-slate-500 font-mono text-xs">${this.escape(r.sku)}</td>
-                            <td class="px-5 py-3 font-medium text-slate-900">${this.escape(r.product_name)}</td>
-                            <td class="px-5 py-3 text-right font-medium ${qtyClass}">
-                                ${r.quantity.toLocaleString()}
-                                <span class="text-slate-400 text-xs ml-1">${this.escape(r.unit)}</span>
-                            </td>
-                            <td class="px-5 py-3 text-right text-slate-500">
-                                ${r.reorder_level > 0 ? r.reorder_level.toLocaleString() : '—'}
-                            </td>
-                            <td class="px-5 py-3 text-right text-slate-700">${value.toFixed(2)}</td>
-                            <td class="px-5 py-3 text-center">${status}</td>
-                        </tr>`;
-                },
-             }">
-
-            {{-- Summary tiles (server-rendered, unchanged on filter) --}}
+            {{-- Summary tiles --}}
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-white border border-slate-200 rounded p-5">
                     <div class="text-sm uppercase tracking-wide text-slate-500">Total Stock Value</div>
