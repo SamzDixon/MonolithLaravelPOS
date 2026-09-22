@@ -75,10 +75,9 @@
                         </div>
                     </div>
 
-                    {{-- Results div: filtered products rendered here, click a row to add --}}
+                    {{-- Results div: hidden until the user types something --}}
                     <div id="product-results"
-                         class="border border-slate-200 rounded max-h-64 overflow-y-auto divide-y divide-slate-100">
-                        {{-- filled by JS --}}
+                         class="hidden border border-slate-200 rounded max-h-64 overflow-y-auto divide-y divide-slate-100">
                     </div>
 
                     <div class="pt-2 border-t border-slate-200">
@@ -101,7 +100,7 @@
                                     <th class="text-right px-4 py-2 font-medium w-24">Qty</th>
                                     <th class="text-right px-4 py-2 font-medium w-32">Unit Price</th>
                                     <th class="text-right px-4 py-2 font-medium w-32">Line Total</th>
-                                    <th class="w-10"></th>
+                                    <th class="w-12"></th>
                                 </tr>
                             </thead>
                             <tbody id="items-body">
@@ -130,8 +129,8 @@
                         Cancel
                     </a>
                     <button type="submit" id="submit-sale"
-                            class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded hover:bg-blue-800">
-                        Record Sale
+                            class="px-6 py-2 text-sm font-semibold text-white bg-blue-700 rounded hover:bg-blue-800">
+                        Checkout
                     </button>
                 </div>
             </form>
@@ -159,45 +158,54 @@
             }
 
             function filteredProducts(term) {
-                if (!term) return state.products;
+                if (!term) return [];
                 const q = term.toLowerCase();
                 return state.products.filter(p =>
                     p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
                 );
             }
 
-            // Renders the clickable results div and the plain select below it.
-            function renderPickers(term) {
-                const matches = filteredProducts(term);
-
-                // Results div
+            // Results div only appears when the user has typed something.
+            function renderResults(term) {
                 const $results = $('#product-results');
+
+                if (!term) {
+                    $results.addClass('hidden').empty();
+                    return;
+                }
+
+                const matches = filteredProducts(term);
+                $results.removeClass('hidden');
+
                 if (matches.length === 0) {
                     $results.html(
                         '<div class="px-4 py-6 text-center text-sm text-slate-500">'
-                        + (term ? 'No products match "' + escapeHtml(term) + '".' : 'No products in stock at this store.')
+                        + 'No products match "' + escapeHtml(term) + '".'
                         + '</div>'
                     );
-                } else {
-                    $results.html(matches.map(p =>
-                        '<button type="button" data-product-id="' + p.id + '"'
-                        + ' class="w-full text-left px-4 py-2 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none flex justify-between items-center gap-3">'
-                        + '<span>'
-                        +   '<span class="font-medium text-slate-800">' + escapeHtml(p.name) + '</span>'
-                        +   '<span class="text-slate-400 text-xs ml-2">' + escapeHtml(p.sku) + '</span>'
-                        + '</span>'
-                        + '<span class="text-slate-600 text-xs whitespace-nowrap">'
-                        +   'KES ' + p.selling_price.toFixed(2)
-                        +   ' · ' + p.available + ' ' + escapeHtml(p.unit)
-                        + '</span>'
-                        + '</button>'
-                    ).join(''));
+                    return;
                 }
 
-                // Plain select below — same matches, manual picking
-                let selectHtml = '<option value="">Select a product…</option>';
-                matches.forEach(p => {
-                    selectHtml += '<option value="' + p.id + '"'
+                $results.html(matches.map(p =>
+                    '<button type="button" data-product-id="' + p.id + '"'
+                    + ' class="w-full text-left px-4 py-2 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none flex justify-between items-center gap-3">'
+                    + '<span>'
+                    +   '<span class="font-medium text-slate-800">' + escapeHtml(p.name) + '</span>'
+                    +   '<span class="text-slate-400 text-xs ml-2">' + escapeHtml(p.sku) + '</span>'
+                    + '</span>'
+                    + '<span class="text-slate-600 text-xs whitespace-nowrap">'
+                    +   'KES ' + p.selling_price.toFixed(2)
+                    +   ' · ' + p.available + ' ' + escapeHtml(p.unit)
+                    + '</span>'
+                    + '</button>'
+                ).join(''));
+            }
+
+            // Dropdown always shows the full product list, unfiltered by search.
+            function renderPicker() {
+                let html = '<option value="">Select a product…</option>';
+                state.products.forEach(p => {
+                    html += '<option value="' + p.id + '"'
                         + ' data-price="' + p.selling_price + '"'
                         + ' data-name="' + escapeHtml(p.name) + '"'
                         + ' data-sku="' + escapeHtml(p.sku) + '"'
@@ -206,18 +214,18 @@
                         + escapeHtml(p.name) + ' (' + escapeHtml(p.sku) + ') — KES ' + p.selling_price.toFixed(2)
                         + '</option>';
                 });
-                $('#product-picker').html(selectHtml);
+                $('#product-picker').html(html);
             }
 
             function loadStock(storeId) {
                 if (!storeId) return;
                 const url = window.saleCreateConfig.stockEndpointTemplate.replace('__STORE__', storeId);
                 $('#stock-status').text('Loading stock…');
-                $('#product-results').html('<div class="px-4 py-6 text-center text-sm text-slate-500">Loading…</div>');
+                $('#product-results').addClass('hidden').empty();
 
                 $.getJSON(url, function (data) {
                     state.products = data.products || [];
-                    renderPickers($('#product-search').val().trim());
+                    renderPicker();
                     if (state.products.length === 0) {
                         $('#stock-status').text('No products currently in stock at this store.');
                     } else {
@@ -225,7 +233,6 @@
                     }
                 }).fail(function () {
                     $('#stock-status').text('Could not load stock for this store.');
-                    $('#product-results').html('<div class="px-4 py-6 text-center text-sm text-red-600">Failed to load products.</div>');
                 });
             }
 
@@ -257,14 +264,21 @@
                     'class="w-28 text-right bg-slate-50 border-slate-300 rounded text-sm price"></td>'
                 );
                 row.append('<td class="px-4 py-2 text-right font-medium line-total">' + money(product.selling_price) + '</td>');
-                row.append('<td class="px-4 py-2 text-center"><button type="button" class="text-red-600 hover:text-red-800 remove-row">×</button></td>');
+                row.append(
+                    '<td class="px-4 py-2 text-center">'
+                    + '<button type="button" class="remove-row text-slate-400 hover:text-red-600 p-1 rounded hover:bg-red-50" title="Remove item">'
+                    + '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+                    + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
+                    + '</svg>'
+                    + '</button>'
+                    + '</td>'
+                );
 
                 $('#items-body').append(row);
 
-                // Reset filters so the operator can start typing the next product.
                 $('#product-search').val('').focus();
                 $('#product-picker').val('');
-                renderPickers('');
+                renderResults('');
 
                 recalculate();
             }
@@ -305,40 +319,36 @@
             // Initial load
             loadStock($('#store_id').val());
 
-            // Store change: clear items, reload products
             $('#store_id').on('change', function () {
                 $('#items-body').empty().append(
                     '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Search or pick a product above.</td></tr>'
                 );
                 state.rowIndex = 0;
                 $('#product-search').val('');
+                renderResults('');
                 recalculate();
                 loadStock($(this).val());
             });
 
-            // Search box filters both pickers
+            // Typing in the search field reveals and populates the results div
             $('#product-search').on('input', function () {
-                renderPickers($(this).val().trim());
+                renderResults($(this).val().trim());
             });
 
-            // Pressing Enter adds the first match (fastest path)
             $('#product-search').on('keydown', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    const term = $(this).val().trim();
-                    const matches = filteredProducts(term);
+                    const matches = filteredProducts($(this).val().trim());
                     if (matches.length > 0) {
                         addProduct(matches[0].id);
                     }
                 }
             });
 
-            // Clicking a result row adds that product
             $('#product-results').on('click', 'button[data-product-id]', function () {
                 addProduct($(this).data('product-id'));
             });
 
-            // Selecting from the plain dropdown adds it immediately
             $('#product-picker').on('change', function () {
                 const id = $(this).val();
                 if (id) {
@@ -361,7 +371,7 @@
             $('#sale-form').on('submit', function (e) {
                 if ($('#items-body tr').not('#empty-row').length === 0) {
                     e.preventDefault();
-                    alert('Add at least one product before recording the sale.');
+                    alert('Add at least one product before checking out.');
                     return false;
                 }
             });
