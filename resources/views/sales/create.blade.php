@@ -11,7 +11,6 @@
         selectedStoreId: {{ Illuminate\Support\Js::from($selectedStoreId) }},
         products: {{ Illuminate\Support\Js::from($products) }},
         stockEndpointTemplate: {{ Illuminate\Support\Js::from(route('sales.stock-for-store', ['store' => '__STORE__'])) }},
-        storeEndpoint: {{ Illuminate\Support\Js::from(route('sales.store')) }},
     };
     </script>
 
@@ -59,8 +58,9 @@
                     </div>
                 </div>
 
-                {{-- Line items --}}
-                <div class="p-6 space-y-4">
+                {{-- Product selection --}}
+                <div class="p-6 space-y-4 border-b border-slate-200">
+
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Search products</label>
                         <div class="relative">
@@ -73,24 +73,26 @@
                                       d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
-                        <p class="mt-1 text-xs text-slate-500">
-                            Press Enter to add the highlighted product, or use the picker below and click Add Item.
-                        </p>
                     </div>
 
-                    <div class="flex items-end gap-3">
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Product</label>
-                            <select id="product-picker" size="5" class="w-full border-slate-300 rounded text-sm">
-                                <option value="">Loading…</option>
-                            </select>
-                        </div>
-                        <button type="button" id="add-row"
-                                class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded hover:bg-blue-800 self-end">
-                            Add Item
-                        </button>
+                    {{-- Results div: filtered products rendered here, click a row to add --}}
+                    <div id="product-results"
+                         class="border border-slate-200 rounded max-h-64 overflow-y-auto divide-y divide-slate-100">
+                        {{-- filled by JS --}}
                     </div>
 
+                    <div class="pt-2 border-t border-slate-200">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">
+                            Or pick from the list
+                        </label>
+                        <select id="product-picker" class="w-full border-slate-300 rounded text-sm">
+                            <option value="">Select a product…</option>
+                        </select>
+                    </div>
+                </div>
+
+                {{-- Line items --}}
+                <div class="p-6 space-y-4">
                     <div class="border border-slate-200 rounded overflow-hidden">
                         <table class="w-full text-sm" id="items-table">
                             <thead class="bg-slate-50 text-slate-600">
@@ -105,7 +107,7 @@
                             <tbody id="items-body">
                                 <tr id="empty-row">
                                     <td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">
-                                        No items yet. Add a product to begin.
+                                        No items yet. Search or pick a product above.
                                     </td>
                                 </tr>
                             </tbody>
@@ -148,6 +150,14 @@
                 return 'KES ' + Number(n).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
 
+            function escapeHtml(s) {
+                return String(s ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
             function filteredProducts(term) {
                 if (!term) return state.products;
                 const q = term.toLowerCase();
@@ -156,44 +166,58 @@
                 );
             }
 
-            function refreshProductPicker(term) {
-                const picker = $('#product-picker');
+            // Renders the clickable results div and the plain select below it.
+            function renderPickers(term) {
                 const matches = filteredProducts(term);
 
+                // Results div
+                const $results = $('#product-results');
                 if (matches.length === 0) {
-                    picker.html('<option value="">No products match "' + (term || '') + '"</option>');
-                    return;
+                    $results.html(
+                        '<div class="px-4 py-6 text-center text-sm text-slate-500">'
+                        + (term ? 'No products match "' + escapeHtml(term) + '".' : 'No products in stock at this store.')
+                        + '</div>'
+                    );
+                } else {
+                    $results.html(matches.map(p =>
+                        '<button type="button" data-product-id="' + p.id + '"'
+                        + ' class="w-full text-left px-4 py-2 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none flex justify-between items-center gap-3">'
+                        + '<span>'
+                        +   '<span class="font-medium text-slate-800">' + escapeHtml(p.name) + '</span>'
+                        +   '<span class="text-slate-400 text-xs ml-2">' + escapeHtml(p.sku) + '</span>'
+                        + '</span>'
+                        + '<span class="text-slate-600 text-xs whitespace-nowrap">'
+                        +   'KES ' + p.selling_price.toFixed(2)
+                        +   ' · ' + p.available + ' ' + escapeHtml(p.unit)
+                        + '</span>'
+                        + '</button>'
+                    ).join(''));
                 }
 
-                let html = '';
+                // Plain select below — same matches, manual picking
+                let selectHtml = '<option value="">Select a product…</option>';
                 matches.forEach(p => {
-                    html += '<option value="' + p.id + '"'
+                    selectHtml += '<option value="' + p.id + '"'
                         + ' data-price="' + p.selling_price + '"'
-                        + ' data-name="' + p.name + '"'
-                        + ' data-sku="' + p.sku + '"'
-                        + ' data-unit="' + p.unit + '"'
+                        + ' data-name="' + escapeHtml(p.name) + '"'
+                        + ' data-sku="' + escapeHtml(p.sku) + '"'
+                        + ' data-unit="' + escapeHtml(p.unit) + '"'
                         + ' data-available="' + p.available + '">'
-                        + p.name + ' (' + p.sku + ') — KES ' + p.selling_price.toFixed(2)
-                        + ' · ' + p.available + ' ' + p.unit + ' available'
+                        + escapeHtml(p.name) + ' (' + escapeHtml(p.sku) + ') — KES ' + p.selling_price.toFixed(2)
                         + '</option>';
                 });
-                picker.html(html);
-
-                // If there's a search term and exactly one match, select it.
-                if (term && matches.length === 1) {
-                    picker.val(matches[0].id);
-                }
+                $('#product-picker').html(selectHtml);
             }
 
             function loadStock(storeId) {
                 if (!storeId) return;
                 const url = window.saleCreateConfig.stockEndpointTemplate.replace('__STORE__', storeId);
                 $('#stock-status').text('Loading stock…');
-                $('#product-picker').html('<option value="">Loading…</option>');
+                $('#product-results').html('<div class="px-4 py-6 text-center text-sm text-slate-500">Loading…</div>');
 
                 $.getJSON(url, function (data) {
                     state.products = data.products || [];
-                    refreshProductPicker('');
+                    renderPickers($('#product-search').val().trim());
                     if (state.products.length === 0) {
                         $('#stock-status').text('No products currently in stock at this store.');
                     } else {
@@ -201,36 +225,26 @@
                     }
                 }).fail(function () {
                     $('#stock-status').text('Could not load stock for this store.');
-                    $('#product-picker').html('<option value="">Failed to load</option>');
+                    $('#product-results').html('<div class="px-4 py-6 text-center text-sm text-red-600">Failed to load products.</div>');
                 });
             }
 
-            function addRow() {
-                const $opt = $('#product-picker').find('option:selected');
-                if (!$opt.val()) {
-                    return;
-                }
-
-                const id = $opt.val();
-                const name = $opt.data('name');
-                const sku = $opt.data('sku');
-                const price = parseFloat($opt.data('price')) || 0;
-                const unit = $opt.data('unit');
-                const available = parseInt($opt.data('available')) || 0;
+            function addProduct(productId) {
+                const product = state.products.find(p => String(p.id) === String(productId));
+                if (!product) return;
 
                 $('#empty-row').remove();
 
                 const idx = state.rowIndex++;
-
                 const row = $('<tr>')
                     .addClass('border-t border-slate-100')
-                    .attr('data-available', available)
-                    .attr('data-unit', unit);
+                    .attr('data-available', product.available)
+                    .attr('data-unit', product.unit);
 
                 row.append(
-                    '<td class="px-4 py-2 text-slate-800">' + name +
-                    ' <span class="text-slate-400 text-xs ml-1">' + sku + '</span>' +
-                    '<input type="hidden" name="items[' + idx + '][product_id]" value="' + id + '"></td>'
+                    '<td class="px-4 py-2 text-slate-800">' + escapeHtml(product.name) +
+                    ' <span class="text-slate-400 text-xs ml-1">' + escapeHtml(product.sku) + '</span>' +
+                    '<input type="hidden" name="items[' + idx + '][product_id]" value="' + product.id + '"></td>'
                 );
                 row.append(
                     '<td class="px-4 py-2 text-right">' +
@@ -239,17 +253,18 @@
                 );
                 row.append(
                     '<td class="px-4 py-2 text-right">' +
-                    '<input type="number" name="items[' + idx + '][unit_price]" value="' + price.toFixed(2) + '" step="0.01" readonly ' +
+                    '<input type="number" name="items[' + idx + '][unit_price]" value="' + product.selling_price.toFixed(2) + '" step="0.01" readonly ' +
                     'class="w-28 text-right bg-slate-50 border-slate-300 rounded text-sm price"></td>'
                 );
-                row.append('<td class="px-4 py-2 text-right font-medium line-total">' + money(price) + '</td>');
+                row.append('<td class="px-4 py-2 text-right font-medium line-total">' + money(product.selling_price) + '</td>');
                 row.append('<td class="px-4 py-2 text-center"><button type="button" class="text-red-600 hover:text-red-800 remove-row">×</button></td>');
 
                 $('#items-body').append(row);
 
-                // Reset the picker and focus the search so the operator can type the next item immediately.
+                // Reset filters so the operator can start typing the next product.
                 $('#product-search').val('').focus();
-                refreshProductPicker('');
+                $('#product-picker').val('');
+                renderPickers('');
 
                 recalculate();
             }
@@ -290,32 +305,46 @@
             // Initial load
             loadStock($('#store_id').val());
 
-            // Store change reloads stock and clears items
+            // Store change: clear items, reload products
             $('#store_id').on('change', function () {
                 $('#items-body').empty().append(
-                    '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Add a product to begin.</td></tr>'
+                    '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Search or pick a product above.</td></tr>'
                 );
                 state.rowIndex = 0;
+                $('#product-search').val('');
                 recalculate();
                 loadStock($(this).val());
             });
 
-            // Search filters the picker
+            // Search box filters both pickers
             $('#product-search').on('input', function () {
-                refreshProductPicker($(this).val().trim());
+                renderPickers($(this).val().trim());
             });
 
-            // Enter in the search field adds the selected product
+            // Pressing Enter adds the first match (fastest path)
             $('#product-search').on('keydown', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    if ($('#product-picker').val()) {
-                        addRow();
+                    const term = $(this).val().trim();
+                    const matches = filteredProducts(term);
+                    if (matches.length > 0) {
+                        addProduct(matches[0].id);
                     }
                 }
             });
 
-            $('#add-row').on('click', addRow);
+            // Clicking a result row adds that product
+            $('#product-results').on('click', 'button[data-product-id]', function () {
+                addProduct($(this).data('product-id'));
+            });
+
+            // Selecting from the plain dropdown adds it immediately
+            $('#product-picker').on('change', function () {
+                const id = $(this).val();
+                if (id) {
+                    addProduct(id);
+                }
+            });
 
             $('#items-body').on('input', '.qty', recalculate);
 
@@ -323,7 +352,7 @@
                 $(this).closest('tr').remove();
                 if ($('#items-body tr').not('#empty-row').length === 0 && $('#empty-row').length === 0) {
                     $('#items-body').append(
-                        '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Add a product to begin.</td></tr>'
+                        '<tr id="empty-row"><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">No items yet. Search or pick a product above.</td></tr>'
                     );
                 }
                 recalculate();
