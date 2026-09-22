@@ -118,6 +118,19 @@ class StockTransferController extends Controller
 
     public function receive(ReceiveTransferRequest $request, StockTransfer $transfer): RedirectResponse
     {
+        // If the receiver submitted per-line received quantities, persist them
+        // before the service reads them. Anything not submitted defaults to
+        // the dispatched quantity inside the service.
+        $receivedLines = collect($request->input('items', []))->keyBy('id');
+
+        foreach ($transfer->items as $item) {
+            if ($receivedLines->has($item->id)) {
+                $item->update([
+                    'received_quantity' => $receivedLines[$item->id]['received_quantity'],
+                ]);
+            }
+        }
+
         try {
             $this->stock->receiveTransfer($transfer, $request->user());
 
