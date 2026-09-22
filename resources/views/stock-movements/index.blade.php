@@ -53,6 +53,7 @@
                     transfer_in: ['Transfer In', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
                     transfer_out: ['Transfer Out', 'bg-amber-50 text-amber-800 border-amber-200'],
                     adjustment: ['Adjustment', 'bg-slate-100 text-slate-700 border-slate-200'],
+                    receipt: ['Receipt', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
                 };
                 const typeInfo = typeMap[r.type] || [r.type, 'bg-slate-100 text-slate-600 border-slate-200'];
                 const label = typeInfo[0];
@@ -172,6 +173,7 @@
                                     'transfer_in' => ['Transfer In', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
                                     'transfer_out' => ['Transfer Out', 'bg-amber-50 text-amber-800 border-amber-200'],
                                     'adjustment' => ['Adjustment', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                    'receipt' => ['Receipt', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
                                 ];
                                 [$typeLabel, $typeClasses] = $typeLabels[$movement->type] ?? [$movement->type, 'bg-slate-100 text-slate-600 border-slate-200'];
                             @endphp

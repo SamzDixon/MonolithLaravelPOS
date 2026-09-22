@@ -9,7 +9,7 @@ use Illuminate\View\View;
 
 class StockMovementController extends Controller
 {
-    private const TYPES = ['opening', 'sale', 'transfer_in', 'transfer_out', 'adjustment'];
+    private const TYPES = ['opening', 'receipt', 'sale', 'transfer_in', 'transfer_out', 'adjustment'];
 
     public function index(Request $request): View
     {
