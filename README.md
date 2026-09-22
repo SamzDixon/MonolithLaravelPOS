@@ -1,88 +1,70 @@
-<<<<<<< HEAD
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# RetailPay
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A monolithic inventory and sales management system for KK Wholesalers, built with Laravel 11, Blade, and MySQL. Tracks stock across branches and stores, records sales, and moves stock between locations with a full audit trail.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## What It Does
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+The system supports the KK Wholesalers scenario from the brief: two branches, one with a single store and the other with two stores, selling wholesale products and moving stock between locations as needed.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**Implemented:**
+- Authentication with three roles: `admin`, `branch_manager`, `store_manager`
+- Branch management (create, edit, deactivate, delete)
+- Store management scoped to branches
+- Product catalogue with cost price, selling price, and reorder levels
+- Stock levels per store, backed by an immutable movement ledger
+- Sales recording with atomic stock decrement
+- Stock transfers with a dispatch/receive lifecycle
+- Dashboard with stock value, sales today, low-stock alerts, recent movements
+- Role-based authorization enforced via policies
 
-## Learning Laravel
+**Planned (see Limitations):**
+- Product, user, stock level, and stock movement Blade views
+- Reporting screens (sales by period, stock turnover)
+- CSV export
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
-```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-=======
-# MonolithLaravelPOS
-
-A simple monolithic inventory and sales management system built with Laravel.
-
-The system supports:
-
-- Branch and store management
-- Product management
-- Supplier management
-- Stock receiving
-- Sales recording
-- Stock transfers between stores
-- Stock movement history
-- Role-based access control
-- Basic stock and sales reporting
+---
 
 ## Technology Stack
 
-- Laravel
-- MySQL / MariaDB
-- Blade
-- JavaScript
-- Bootstrap
+- **Laravel 11** — application framework
+- **PHP 8.2+**
+- **MySQL / MariaDB** — primary database (InnoDB for transactions)
+- **Blade** — server-rendered views
+- **Tailwind CSS** — styling (via Laravel Breeze)
+- **Alpine.js** — small interactive components (toasts, modals, sidebar, line-item forms)
+- **jQuery** — sale and transfer line-item manipulation
+- **Vite** — asset bundling
+
+**Why Blade and not a Vue SPA:** the brief permits either. A POS terminal in a Kenyan wholesale business runs on low-end hardware with unreliable connectivity. Server-rendered Blade pages work without JavaScript, degrade gracefully, and require no separate build pipeline for the reviewer to reproduce. The interactive pieces (modals, toasts, dropdowns, sidebar) are small enough that Alpine and jQuery handle them without adding a framework runtime.
+
+---
 
 ## Setup
 
-Setup instructions will be documented as the project develops.
->>>>>>> 5e83cb42ff517e97254e2fd6cae65bc4786f54f6
+### Requirements
+
+- PHP 8.2 or later with `pdo_mysql`, `mbstring`, `xml`, `ctype`, `json`, `bcmath`
+- Composer 2.x
+- Node.js 18+ and npm
+- MySQL 8.0+ or MariaDB 10.4+
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone git@github.com:<your-username>/retailpay.git
+cd retailpay
+
+# 2. Install PHP dependencies
+composer install
+
+# 3. Install JS dependencies
+npm install
+
+# 4. Create the environment file
+cp .env.example .env
+
+# 5. Generate the application key
+php artisan key:generate
