@@ -15,18 +15,11 @@ class StockTransferLifecycleTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Full happy path: request, dispatch, receive. This exercises every
-     * step of the transfer state machine and proves the ledger records
-     * both the outbound and inbound movements.
-     */
     public function test_full_transfer_lifecycle_moves_stock_between_stores(): void
     {
-        $this->markTestIncomplete('StockTransferController not yet built.');
+        [$storeA, $storeB, $product, $managerA, $managerB, $branchManager] = $this->seedScenario();
 
-        [$branch, $storeA, $storeB, $product, $managerA, $managerB, $branchManager] = $this->seedScenario();
-
-        // Request a transfer of 5 units from A to B.
+        // Branch manager initiates the transfer.
         $this->actingAs($branchManager)->post('/transfers', [
             'from_store_id' => $storeA->id,
             'to_store_id' => $storeB->id,
@@ -37,8 +30,10 @@ class StockTransferLifecycleTest extends TestCase
 
         $transfer = StockTransfer::firstOrFail();
         $this->assertEquals('pending', $transfer->status);
+        $this->assertEquals(10, StockLevel::where('store_id', $storeA->id)
+            ->where('product_id', $product->id)->value('quantity'));
 
-        // Source store manager dispatches.
+        // Source store manager confirms the dispatch.
         $this->actingAs($managerA)
             ->post("/transfers/{$transfer->id}/dispatch")
             ->assertRedirect();
@@ -48,7 +43,7 @@ class StockTransferLifecycleTest extends TestCase
         $this->assertEquals(5, StockLevel::where('store_id', $storeA->id)
             ->where('product_id', $product->id)->value('quantity'));
 
-        // Destination store manager receives.
+        // Destination store manager confirms receipt.
         $this->actingAs($managerB)
             ->post("/transfers/{$transfer->id}/receive")
             ->assertRedirect();
@@ -58,7 +53,7 @@ class StockTransferLifecycleTest extends TestCase
         $this->assertEquals(5, StockLevel::where('store_id', $storeB->id)
             ->where('product_id', $product->id)->value('quantity'));
 
-        // Two ledger entries: out of A, into B.
+        // Ledger has both legs.
         $this->assertDatabaseHas('stock_movements', [
             'store_id' => $storeA->id,
             'product_id' => $product->id,
@@ -73,14 +68,9 @@ class StockTransferLifecycleTest extends TestCase
         ]);
     }
 
-    /**
-     * You cannot dispatch a transfer if the source store doesn't have
-     * enough stock. The whole operation must fail atomically.
-     */
     public function test_dispatch_fails_when_source_store_has_insufficient_stock(): void
     {
-        $this->markTestIncomplete('StockTransferController not yet built.');
-        [$branch, $storeA, $storeB, $product, $managerA, $managerB, $branchManager] = $this->seedScenario();
+        [$storeA, $storeB, $product, $managerA, $managerB, $branchManager] = $this->seedScenario();
 
         $this->actingAs($branchManager)->post('/transfers', [
             'from_store_id' => $storeA->id,
@@ -98,49 +88,43 @@ class StockTransferLifecycleTest extends TestCase
 
         $transfer->refresh();
         $this->assertEquals('pending', $transfer->status);
-
-        // Stock at A is unchanged.
         $this->assertEquals(10, StockLevel::where('store_id', $storeA->id)
             ->where('product_id', $product->id)->value('quantity'));
     }
 
-    /**
-     * The same transfer cannot be received twice. Without this guard,
-     * a double-click or a page refresh duplicates stock at the
-     * destination — a bug that silently corrupts inventory.
-     */
     public function test_transfer_cannot_be_received_twice(): void
     {
-        $this->markTestIncomplete('StockTransferController not yet built.');
-        [$branch, $storeA, $storeB, $product, $managerA, $managerB, $branchManager] = $this->seedScenario();
+        [$storeA, $storeB, $product, $managerA, $managerB, $branchManager] = $this->seedScenario();
 
         $this->actingAs($branchManager)->post('/transfers', [
             'from_store_id' => $storeA->id,
             'to_store_id' => $storeB->id,
-            'items' => [['product_id' => $product->id, 'quantity' => 3]],
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 3],
+            ],
         ]);
+
         $transfer = StockTransfer::firstOrFail();
 
         $this->actingAs($managerA)->post("/transfers/{$transfer->id}/dispatch");
         $this->actingAs($managerB)->post("/transfers/{$transfer->id}/receive");
 
-        // Second receive attempt must not change anything.
+        $this->assertEquals(3, StockLevel::where('store_id', $storeB->id)
+            ->where('product_id', $product->id)->value('quantity'));
+
+        // Second receive attempt is rejected — the policy sees the status
+        // is no longer 'dispatched' and returns false, which surfaces as
+        // a 403 from the FormRequest's authorize() method.
         $this->actingAs($managerB)
             ->post("/transfers/{$transfer->id}/receive")
-            ->assertSessionHasErrors();
+            ->assertForbidden();
 
         $this->assertEquals(3, StockLevel::where('store_id', $storeB->id)
             ->where('product_id', $product->id)->value('quantity'));
     }
 
-    /**
-     * Sets up two stores in the same branch, a product with 10 units at
-     * store A and none at store B, and the three users needed to run
-     * each step of the transfer flow.
-     */
     private function seedScenario(): array
     {
-        $this->markTestIncomplete('StockTransferController not yet built.');
         $branch = Branch::factory()->create();
         $storeA = Store::factory()->create(['branch_id' => $branch->id]);
         $storeB = Store::factory()->create(['branch_id' => $branch->id]);
@@ -173,6 +157,6 @@ class StockTransferLifecycleTest extends TestCase
             'store_id' => null,
         ]);
 
-        return [$branch, $storeA, $storeB, $product, $managerA, $managerB, $branchManager];
+        return [$storeA, $storeB, $product, $managerA, $managerB, $branchManager];
     }
 }

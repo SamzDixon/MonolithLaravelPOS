@@ -7,7 +7,7 @@
             @can('create', App\Models\Sale::class)
                 <a href="{{ route('sales.create') }}"
                    class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded hover:bg-blue-800">
-                    Record Sale
+                    POS Sale
                 </a>
             @endcan
         </div>

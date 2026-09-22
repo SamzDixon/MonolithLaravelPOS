@@ -94,56 +94,37 @@ class StockTransferPolicy
      *
      * The source side must confirm that stock is leaving.
      */
-    public function dispatch(User $user, StockTransfer $stockTransfer): bool
+    public function dispatch(User $user, StockTransfer $transfer): bool
     {
-        if (! $user->is_active) {
-            return false;
-        }
+        if (! $user->is_active) return false;
+        if ($transfer->status !== 'pending') return false;
 
-        if ($stockTransfer->status !== 'pending') {
-            return false;
-        }
-
-        if ($user->isAdmin()) {
-            return true;
-        }
+        if ($user->isAdmin()) return true;
 
         if ($user->isBranchManager()) {
-            return $stockTransfer->fromStore->branch_id === $user->branch_id;
+            return $transfer->fromStore->branch_id === $user->branch_id;
         }
 
         if ($user->isStoreManager()) {
-            return $stockTransfer->from_store_id === $user->store_id;
+            return $transfer->from_store_id === $user->store_id;
         }
 
         return false;
     }
 
-    /**
-     * Determine whether the user can receive a transfer.
-     *
-     * The destination side confirms that stock has arrived.
-     */
-    public function receive(User $user, StockTransfer $stockTransfer): bool
+    public function receive(User $user, StockTransfer $transfer): bool
     {
-        if (! $user->is_active) {
-            return false;
-        }
+        if (! $user->is_active) return false;
+        if ($transfer->status !== 'dispatched') return false;
 
-        if ($stockTransfer->status !== 'dispatched') {
-            return false;
-        }
-
-        if ($user->isAdmin()) {
-            return true;
-        }
+        if ($user->isAdmin()) return true;
 
         if ($user->isBranchManager()) {
-            return $stockTransfer->toStore->branch_id === $user->branch_id;
+            return $transfer->toStore->branch_id === $user->branch_id;
         }
 
         if ($user->isStoreManager()) {
-            return $stockTransfer->to_store_id === $user->store_id;
+            return $transfer->to_store_id === $user->store_id;
         }
 
         return false;
