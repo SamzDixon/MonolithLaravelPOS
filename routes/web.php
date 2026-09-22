@@ -26,6 +26,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'active.user'])->group(function () {
 
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('sales/search', [SaleController::class, 'search'])->name('sales.search');
+    Route::get('sales/stock-for-store/{store}', [SaleController::class, 'stockForStore'])->name('sales.stock-for-store');
+    Route::resource('sales', SaleController::class)->except(['edit', 'update']);
 
     // Admin-only: master data that affects the whole business.
     Route::middleware('role:admin')->group(function () {

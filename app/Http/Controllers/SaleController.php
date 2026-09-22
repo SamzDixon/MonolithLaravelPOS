@@ -26,13 +26,32 @@ class SaleController extends Controller
     {
         $this->authorize('viewAny', Sale::class);
 
-        $sales = Sale::query()
-            ->whereIn('store_id', $this->visibleStoreIds($request->user()))
-            ->with(['store:id,name', 'user:id,name'])
-            ->latest()
-            ->paginate(25);
+        $user = $request->user();
+        $storeIds = $this->visibleStoreIds($user);
 
-        return view('sales.index', compact('sales'));
+        $filters = [
+            'store_id' => $request->input('store_id'),
+            'search' => trim((string) $request->input('search', '')),
+            'from' => $request->input('from'),
+            'to' => $request->input('to'),
+        ];
+
+        $query = Sale::query()
+            ->withTrashed()
+            ->whereIn('store_id', $storeIds)
+            ->with(['store:id,name', 'user:id,name'])
+            ->withCount('items');
+
+        if ($filters['store_id']) $query->where('store_id', $filters['store_id']);
+        if ($filters['search']) $query->where('reference', 'like', "%{$filters['search']}%");
+        if ($filters['from']) $query->whereDate('created_at', '>=', $filters['from']);
+        if ($filters['to']) $query->whereDate('created_at', '<=', $filters['to']);
+
+        $sales = $query->latest('id')->paginate(25)->withQueryString();
+
+        $stores = \App\Models\Store::whereIn('id', $storeIds)->orderBy('name')->get(['id', 'name']);
+
+        return view('sales.index', compact('sales', 'stores', 'filters'));
     }
 
     /**
@@ -45,20 +64,26 @@ class SaleController extends Controller
         $this->authorize('create', Sale::class);
 
         $user = $request->user();
-        $storeId = $user->store_id;
 
-        $stockedProducts = StockLevel::query()
-            ->where('store_id', $storeId)
-            ->whereHas('product', fn ($q) => $q->where('is_active', true))
-            ->with('product:id,name,sku,selling_price')
-            ->where('quantity', '>', 0)
-            ->get()
-            ->pluck('product');
+        // Stores this user can record a sale against.
+        if ($user->isStoreManager()) {
+            $stores = \App\Models\Store::where('id', $user->store_id)->get(['id', 'name']);
+        } elseif ($user->isBranchManager()) {
+            $stores = \App\Models\Store::where('branch_id', $user->branch_id)
+                ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        } else {
+            $stores = \App\Models\Store::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        }
 
-        return view('sales.create', [
-            'store' => $user->store,
-            'products' => $stockedProducts,
-        ]);
+        $selectedStoreId = old('store_id', $stores->first()?->id);
+
+        // Preload stock for the initially-selected store so the form works
+        // even if JS fails — the product dropdown has its options server-side.
+        $products = $selectedStoreId
+            ? $this->stockedProducts($selectedStoreId)
+            : collect();
+
+        return view('sales.create', compact('stores', 'selectedStoreId', 'products'));
     }
 
     /**
@@ -167,6 +192,104 @@ class SaleController extends Controller
         return redirect()
             ->route('sales.index')
             ->with('status', "Sale {$sale->reference} voided.");
+    }
+
+    /**
+     * JSON: current stock for a store, for the create form's live product
+     * picker and the client-side quantity warning.
+     */
+    public function stockForStore(Request $request, \App\Models\Store $store): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+
+        // Same store scoping as the create form.
+        $allowed = $user->isAdmin()
+            || ($user->isBranchManager() && $store->branch_id === $user->branch_id)
+            || ($user->isStoreManager() && $store->id === $user->store_id);
+
+        abort_unless($allowed, 403);
+
+        return response()->json([
+            'products' => $this->stockedProducts($store->id)->map(fn ($p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'sku' => $p->sku,
+                'unit' => $p->unit,
+                'selling_price' => (float) $p->selling_price,
+                'available' => (int) $p->available_quantity,
+            ]),
+        ]);
+    }
+
+    /**
+     * JSON: sales list for live filter on the index page.
+     */
+    public function search(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('viewAny', Sale::class);
+
+        $query = Sale::query()
+            ->whereIn('store_id', $this->visibleStoreIds($request->user()))
+            ->with(['store:id,name', 'user:id,name'])
+            ->withCount('items');
+
+        if ($storeId = $request->input('store_id')) {
+            $query->where('store_id', $storeId);
+        }
+        if ($from = $request->input('from')) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $request->input('to')) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+        if ($search = trim((string) $request->input('search', ''))) {
+            $query->where('reference', 'like', "%{$search}%");
+        }
+
+        // Clone the builder before summing, so paginate's LIMIT/OFFSET
+        // doesn't corrupt the sum.
+        $totalAmount = (clone $query)->sum('total_amount');
+        $sales = $query->latest('id')->paginate(25);
+
+        return response()->json([
+            'count' => $sales->total(),
+            'total_amount' => (float) $totalAmount,
+            'rows' => $sales->map(fn ($s) => [
+                'id' => $s->id,
+                'reference' => $s->reference,
+                'store_name' => $s->store->name,
+                'user_name' => $s->user->name,
+                'total_amount' => (float) $s->total_amount,
+                'items_count' => $s->items_count,
+                'status' => $s->status,
+                'created_at' => $s->created_at->format('d M Y, H:i'),
+                'show_url' => route('sales.show', $s),
+            ]),
+        ]);
+    }
+
+    /**
+     * Shared: products with positive stock at a given store, including
+     * the quantity available for the client-side stock check.
+     */
+    private function stockedProducts(int $storeId): \Illuminate\Support\Collection
+    {
+        return StockLevel::query()
+            ->where('store_id', $storeId)
+            ->where('quantity', '>', 0)
+            ->join('products', 'products.id', '=', 'stock_levels.product_id')
+            ->where('products.is_active', true)
+            ->whereNull('products.deleted_at')
+            ->select(
+                'products.id',
+                'products.name',
+                'products.sku',
+                'products.unit',
+                'products.selling_price',
+                'stock_levels.quantity as available_quantity'
+            )
+            ->orderBy('products.name')
+            ->get();
     }
 
     /**
