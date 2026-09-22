@@ -58,4 +58,9 @@ class User extends Authenticatable
     {
         return $this->role === 'store_manager';
     }
+
+    public function stockReceipts()
+    {
+        return $this->hasMany(StockReceipt::class);
+    }
 }

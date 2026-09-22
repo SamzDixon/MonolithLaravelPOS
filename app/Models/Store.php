@@ -43,4 +43,9 @@ class Store extends Model
     {
         return $this->hasMany(StockTransfer::class, 'to_store_id');
     }
+
+    public function stockReceipts()
+    {
+        return $this->hasMany(StockReceipt::class);
+    }
 }

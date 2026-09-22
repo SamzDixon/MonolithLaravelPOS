@@ -55,6 +55,10 @@
                 </button>
 
                 <div x-show="openStock" x-collapse class="mt-1 ml-4 pl-3 border-l border-blue-800 space-y-1">
+                    <a href="{{ route('receipts.index') }}"
+                       class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('receipts.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
+                        Receipts
+                    </a>
                     <a href="{{ route('stock-levels.index') }}"
                        class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('stock-levels.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
                         Current Levels
@@ -147,6 +151,10 @@
                        class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('products.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
                         Products
                     </a>
+                    <a href="{{ route('suppliers.index') }}"
+                        class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('suppliers.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
+                            Suppliers
+                     </a>
                 </div>
             </div>
         @endif

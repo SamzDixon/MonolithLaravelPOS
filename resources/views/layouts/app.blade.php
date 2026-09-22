@@ -21,9 +21,9 @@
     <body class="font-sans antialiased bg-slate-100">
         <div x-data="{
                 sidebarOpen: false,
-                openStock: {{ request()->routeIs('stock-levels.*') || request()->routeIs('stock-movements.*') ? 'true' : 'false' }},
+                openStock: {{ request()->routeIs('stock-levels.*') || request()->routeIs('stock-movements.*') || request()->routeIs('receipts.*') ? 'true' : 'false' }},
                 openSales: {{ request()->routeIs('sales.*') ? 'true' : 'false' }},
-                openSetup: {{ request()->routeIs('branches.*') || request()->routeIs('stores.*') || request()->routeIs('products.*') || request()->routeIs('users.*') ? 'true' : 'false' }}
+                openSetup: {{ request()->routeIs('branches.*') || request()->routeIs('stores.*') || request()->routeIs('products.*')|| request()->routeIs('suppliers.*') || request()->routeIs('users.*') ? 'true' : 'false' }}
             }"
              @keydown.escape.window="sidebarOpen = false"
              class="min-h-screen">

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\StockReceipt;
 use App\Models\StockLevel;
 use App\Models\StockMovement;
 use App\Models\StockTransfer;
@@ -223,5 +224,32 @@ class StockService
         }
 
         return $level;
+    }
+
+    /**
+     * Record a goods receipt from a supplier. Increments stock at the
+     * destination store and writes a `receipt` movement for each line.
+     * No stock check is needed — we're adding, not removing.
+     */
+    public function recordReceipt(StockReceipt $receipt, User $user): void
+    {
+        DB::transaction(function () use ($receipt, $user) {
+            foreach ($receipt->items as $item) {
+                $level = $this->lockLevel($receipt->store_id, $item->product_id);
+                $level->quantity += $item->quantity;
+                $level->save();
+
+                StockMovement::create([
+                    'store_id' => $receipt->store_id,
+                    'product_id' => $item->product_id,
+                    'quantity_delta' => $item->quantity,
+                    'type' => 'receipt',
+                    'reference_type' => StockReceipt::class,
+                    'reference_id' => $receipt->id,
+                    'user_id' => $user->id,
+                    'notes' => "Receipt {$receipt->reference} from {$receipt->supplier->name}",
+                ]);
+            }
+        });
     }
 }
