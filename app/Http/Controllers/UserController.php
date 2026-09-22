@@ -2,63 +2,90 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
+use App\Models\Branch;
+use App\Models\Store;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(Request $request): View
     {
-        //
+        $this->authorize('viewAny', User::class);
+
+        $users = User::query()
+            ->with(['branch:id,name', 'store:id,name'])
+            ->orderBy('name')
+            ->paginate(20);
+
+        return view('users.index', compact('users'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function create(): View
     {
-        //
+        $this->authorize('create', User::class);
+
+        $branches = Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $stores = Store::where('is_active', true)->orderBy('name')->get(['id', 'name', 'branch_id']);
+
+        return view('users.create', compact('branches', 'stores'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request): RedirectResponse
     {
-        //
+        $data = $request->validated();
+        $data['password'] = Hash::make($data['password']);
+
+        $user = User::create($data);
+
+        return redirect()
+            ->route('users.index')
+            ->with('status', "User {$user->name} created.");
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function edit(User $user): View
     {
-        //
+        $this->authorize('update', $user);
+
+        $branches = Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $stores = Store::where('is_active', true)->orderBy('name')->get(['id', 'name', 'branch_id']);
+
+        return view('users.edit', compact('user', 'branches', 'stores'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        //
+        $data = $request->validated();
+
+        // Only touch the password if the admin typed a new one.
+        if (! empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
+        }
+
+        $user->update($data);
+
+        return redirect()
+            ->route('users.index')
+            ->with('status', "User {$user->name} updated.");
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function destroy(User $user): RedirectResponse
     {
-        //
-    }
+        $this->authorize('delete', $user);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        // Users have sales attributed to them. Soft-delete keeps the
+        // attribution intact while removing them from active lists.
+        $user->delete();
+
+        return redirect()
+            ->route('users.index')
+            ->with('status', "User {$user->name} removed.");
     }
 }

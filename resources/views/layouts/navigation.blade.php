@@ -117,13 +117,13 @@
                        class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('stores.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
                         Stores
                     </a>
-                    <a href="{{ route('products.index') }}"
-                       class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('products.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
-                        Products
-                    </a>
                     <a href="{{ route('users.index') }}"
                        class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('users.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
                         Users
+                    </a>
+                    <a href="{{ route('products.index') }}"
+                       class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('products.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
+                        Products
                     </a>
                 </div>
             </div>
