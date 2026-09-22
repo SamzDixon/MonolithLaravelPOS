@@ -2,10 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreProductRequest extends FormRequest
+class UpdateProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,14 +15,21 @@ class StoreProductRequest extends FormRequest
 
     public function rules(): array
     {
+        $product = $this->route('product');
+        $productId = $product instanceof Product ? $product->getKey() : $product;
+
         return [
             'sku' => [
                 'required', 'string', 'max:50',
-                Rule::unique('products', 'sku')->whereNull('deleted_at'),
+                Rule::unique('products', 'sku')
+                    ->whereNull('deleted_at')
+                    ->ignore($productId),
             ],
             'name' => [
                 'required', 'string', 'max:150',
-                Rule::unique('products', 'name')->whereNull('deleted_at'),
+                Rule::unique('products', 'name')
+                    ->whereNull('deleted_at')
+                    ->ignore($productId),
             ],
             'unit' => ['required', 'string', 'max:20'],
             'cost_price' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
