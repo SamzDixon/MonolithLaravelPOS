@@ -38,7 +38,7 @@
             render(rows) {
                 const tbody = document.getElementById('stock-levels-body');
                 if (rows.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="px-5 py-12 text-center text-slate-500">No stock records match your filters.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="px-5 py-12 text-center text-slate-500">No stock records match your filters.</td></tr>';
                     return;
                 }
                 tbody.innerHTML = rows.map(r => this.rowHtml(r)).join('');
@@ -47,9 +47,18 @@
             rowHtml(r) {
                 const isEmpty = r.quantity === 0;
                 const isLow = r.reorder_level > 0 && r.quantity <= r.reorder_level;
-                const value = r.quantity * r.cost_price;
+                const costValue = r.quantity * r.cost_price;
+                const margin = r.cost_price > 0
+                    ? ((r.selling_price - r.cost_price) / r.cost_price) * 100
+                    : null;
 
                 const qtyClass = isEmpty ? 'text-red-600' : (isLow ? 'text-amber-600' : 'text-slate-900');
+
+                const marginText = margin === null ? '—' : margin.toFixed(1) + '%';
+                const marginClass = margin === null ? 'text-slate-400'
+                    : margin >= 15 ? 'text-emerald-600'
+                    : margin >= 5 ? 'text-amber-600'
+                    : 'text-red-600';
 
                 let status;
                 if (isEmpty) {
@@ -60,18 +69,23 @@
                     status = '<span class="inline-block px-2 py-0.5 text-xs font-medium border rounded bg-emerald-50 text-emerald-800 border-emerald-200">Healthy</span>';
                 }
 
-                const reorder = r.reorder_level > 0 ? r.reorder_level.toLocaleString() : '—';
+                const reorderLabel = r.reorder_level > 0 ? r.reorder_level.toLocaleString() : '—';
 
                 return '<tr class="border-t border-slate-100 hover:bg-slate-50">'
                     + '<td class="px-5 py-3 text-slate-700">' + this.escape(r.store_name) + '</td>'
-                    + '<td class="px-5 py-3 text-slate-500 font-mono text-xs">' + this.escape(r.sku) + '</td>'
-                    + '<td class="px-5 py-3 font-medium text-slate-900">' + this.escape(r.product_name) + '</td>'
-                    + '<td class="px-5 py-3 text-right font-medium ' + qtyClass + '">' + r.quantity.toLocaleString() + '<span class="text-slate-400 text-xs ml-1">' + this.escape(r.unit) + '</span></td>'
-                    + '<td class="px-5 py-3 text-right text-slate-500">' + reorder + '</td>'
-                    + '<td class="px-5 py-3 text-right text-slate-700">' + value.toFixed(2) + '</td>'
+                    + '<td class="px-5 py-3">'
+                    +   '<div class="font-medium text-slate-900">' + this.escape(r.product_name) + '</div>'
+                    +   '<div class="text-slate-400 text-xs font-mono">' + this.escape(r.sku) + '</div>'
+                    + '</td>'
+                    + '<td class="px-5 py-3 text-right font-medium ' + qtyClass + '">' + r.quantity.toLocaleString()
+                    +   '<span class="text-slate-400 text-xs ml-1">' + this.escape(r.unit) + '</span></td>'
+                    + '<td class="px-5 py-3 text-right text-slate-600">' + r.cost_price.toFixed(2) + '</td>'
+                    + '<td class="px-5 py-3 text-right text-slate-800 font-medium">' + r.selling_price.toFixed(2) + '</td>'
+                    + '<td class="px-5 py-3 text-right font-medium ' + marginClass + '">' + marginText + '</td>'
+                    + '<td class="px-5 py-3 text-right text-slate-700">' + costValue.toFixed(2) + '</td>'
                     + '<td class="px-5 py-3 text-center">' + status + '</td>'
                     + '</tr>';
-            },
+            }
         };
     }
     </script>
@@ -81,21 +95,33 @@
              x-data="stockLevelsPage(window.stockLevelsConfig)">
 
             {{-- Summary tiles --}}
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-white border border-slate-200 rounded p-5">
-                    <div class="text-sm uppercase tracking-wide text-slate-500">Total Stock Value</div>
+                    <div class="text-sm uppercase tracking-wide text-slate-500">Cost Value</div>
                     <div class="mt-2 text-2xl font-semibold text-slate-900">
                         KES {{ number_format($summary['total_value'], 2) }}
                     </div>
                 </div>
+
                 <div class="bg-white border border-slate-200 rounded p-5">
-                    <div class="text-sm uppercase tracking-wide text-slate-500">Total Units on Hand</div>
+                    <div class="text-sm uppercase tracking-wide text-slate-500">Retail Value</div>
+                    <div class="mt-2 text-2xl font-semibold text-slate-900">
+                        KES {{ number_format($summary['retail_value'], 2) }}
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1">
+                        Potential revenue if all sells
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded p-5">
+                    <div class="text-sm uppercase tracking-wide text-slate-500">Total Units</div>
                     <div class="mt-2 text-2xl font-semibold text-slate-900">
                         {{ number_format($summary['total_units']) }}
                     </div>
                 </div>
+
                 <div class="bg-white border border-slate-200 rounded p-5">
-                    <div class="text-sm uppercase tracking-wide text-slate-500">Items Below Reorder</div>
+                    <div class="text-sm uppercase tracking-wide text-slate-500">Below Reorder</div>
                     <div class="mt-2 text-2xl font-semibold {{ $summary['low_stock_count'] > 0 ? 'text-amber-600' : 'text-emerald-600' }}">
                         {{ $summary['low_stock_count'] }}
                     </div>
@@ -160,13 +186,16 @@
                 <table class="w-full text-sm">
                     <thead class="bg-slate-50 text-slate-600">
                         <tr>
-                            <th class="text-left px-5 py-3 font-medium">Store</th>
-                            <th class="text-left px-5 py-3 font-medium">SKU</th>
-                            <th class="text-left px-5 py-3 font-medium">Product</th>
-                            <th class="text-right px-5 py-3 font-medium">On Hand</th>
-                            <th class="text-right px-5 py-3 font-medium">Reorder</th>
-                            <th class="text-right px-5 py-3 font-medium">Stock Value</th>
-                            <th class="text-center px-5 py-3 font-medium">Status</th>
+                            <tr>
+                                <th class="text-left px-5 py-3 font-medium">Store</th>
+                                <th class="text-left px-5 py-3 font-medium">Product</th>
+                                <th class="text-right px-5 py-3 font-medium">On Hand</th>
+                                <th class="text-right px-5 py-3 font-medium">Cost</th>
+                                <th class="text-right px-5 py-3 font-medium">Selling</th>
+                                <th class="text-right px-5 py-3 font-medium">Margin</th>
+                                <th class="text-right px-5 py-3 font-medium">Stock Value</th>
+                                <th class="text-center px-5 py-3 font-medium">Status</th>
+                            </tr>
                         </tr>
                     </thead>
                     <tbody id="stock-levels-body">
@@ -175,20 +204,28 @@
                                 $product = $level->product;
                                 $isLow = $product->reorder_level > 0 && $level->quantity <= $product->reorder_level;
                                 $isEmpty = $level->quantity === 0;
-                                $value = $level->quantity * $product->cost_price;
+                                $costValue = $level->quantity * $product->cost_price;
+                                $margin = $product->cost_price > 0
+                                    ? (($product->selling_price - $product->cost_price) / $product->cost_price) * 100
+                                    : null;
                             @endphp
                             <tr class="border-t border-slate-100 hover:bg-slate-50">
                                 <td class="px-5 py-3 text-slate-700">{{ $level->store->name }}</td>
-                                <td class="px-5 py-3 text-slate-500 font-mono text-xs">{{ $product->sku }}</td>
-                                <td class="px-5 py-3 font-medium text-slate-900">{{ $product->name }}</td>
+                                <td class="px-5 py-3">
+                                    <div class="font-medium text-slate-900">{{ $product->name }}</div>
+                                    <div class="text-slate-400 text-xs font-mono">{{ $product->sku }}</div>
+                                </td>
                                 <td class="px-5 py-3 text-right font-medium {{ $isEmpty ? 'text-red-600' : ($isLow ? 'text-amber-600' : 'text-slate-900') }}">
                                     {{ number_format($level->quantity) }}
                                     <span class="text-slate-400 text-xs ml-1">{{ $product->unit }}</span>
                                 </td>
-                                <td class="px-5 py-3 text-right text-slate-500">
-                                    {{ $product->reorder_level > 0 ? number_format($product->reorder_level) : '—' }}
+                                <td class="px-5 py-3 text-right text-slate-600">{{ number_format($product->cost_price, 2) }}</td>
+                                <td class="px-5 py-3 text-right text-slate-800 font-medium">{{ number_format($product->selling_price, 2) }}</td>
+                                <td class="px-5 py-3 text-right font-medium
+                                    {{ $margin === null ? 'text-slate-400' : ($margin >= 15 ? 'text-emerald-600' : ($margin >= 5 ? 'text-amber-600' : 'text-red-600')) }}">
+                                    {{ $margin === null ? '—' : number_format($margin, 1) . '%' }}
                                 </td>
-                                <td class="px-5 py-3 text-right text-slate-700">{{ number_format($value, 2) }}</td>
+                                <td class="px-5 py-3 text-right text-slate-700">{{ number_format($costValue, 2) }}</td>
                                 <td class="px-5 py-3 text-center">
                                     @if ($isEmpty)
                                         <span class="inline-block px-2 py-0.5 text-xs font-medium border rounded bg-red-50 text-red-700 border-red-200">Out of stock</span>
@@ -201,7 +238,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-5 py-12 text-center text-slate-500">
+                                <td colspan="8" class="px-5 py-12 text-center text-slate-500">
                                     No stock records match your filters.
                                 </td>
                             </tr>

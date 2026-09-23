@@ -7,170 +7,122 @@ use App\Models\User;
 
 class StockTransferPolicy
 {
-    /**
-     * Determine whether the user can view the list of transfers.
-     */
     public function viewAny(User $user): bool
     {
-        return $user->is_active;
+        return (bool) $user->is_active;
     }
 
-    /**
-     * Determine whether the user can view a specific transfer.
-     */
-    public function view(User $user, StockTransfer $stockTransfer): bool
+    public function view(User $user, StockTransfer $transfer): bool
     {
-        if (! $user->is_active) {
-            return false;
-        }
+        if (! $user->is_active) return false;
+        if ($user->isAdmin()) return true;
 
-        if ($user->isAdmin()) {
-            return true;
-        }
+        $fromBranchId = (int) optional($transfer->fromStore)->branch_id;
+        $toBranchId = (int) optional($transfer->toStore)->branch_id;
+        $userBranchId = (int) $user->branch_id;
 
         if ($user->isBranchManager()) {
-            return $stockTransfer->fromStore->branch_id === $user->branch_id
-                || $stockTransfer->toStore->branch_id === $user->branch_id;
+            return $fromBranchId === $userBranchId || $toBranchId === $userBranchId;
         }
 
         if ($user->isStoreManager()) {
-            return $stockTransfer->from_store_id === $user->store_id
-                || $stockTransfer->to_store_id === $user->store_id;
+            $fromStoreId = (int) $transfer->from_store_id;
+            $toStoreId = (int) $transfer->to_store_id;
+            $userStoreId = (int) $user->store_id;
+
+            return $fromStoreId === $userStoreId || $toStoreId === $userStoreId;
         }
 
         return false;
     }
 
-    /**
-     * Determine whether the user can create a transfer.
-     *
-     * Store Managers can request stock transfers.
-     * Branch Managers and Administrators can create/initiate transfers.
-     */
     public function create(User $user): bool
     {
-        if (! $user->is_active) {
-            return false;
-        }
+        if (! $user->is_active) return false;
 
-        return $user->isAdmin()
-            || $user->isBranchManager();
+        return $user->isAdmin() || $user->isBranchManager();
     }
 
-    /**
-     * Determine whether the user can update a transfer.
-     *
-     * Transfers should only be editable while pending.
-     */
-    public function update(User $user, StockTransfer $stockTransfer): bool
+    public function update(User $user, StockTransfer $transfer): bool
     {
-        if (! $user->is_active) {
-            return false;
-        }
-
-        if ($stockTransfer->status !== 'pending') {
-            return false;
-        }
-
-        if ($user->isAdmin()) {
-            return true;
-        }
+        if (! $user->is_active) return false;
+        if ($transfer->status !== 'pending') return false;
+        if ($user->isAdmin()) return true;
 
         if ($user->isBranchManager()) {
-            return $stockTransfer->fromStore->branch_id === $user->branch_id
-                || $stockTransfer->toStore->branch_id === $user->branch_id;
-        }
-
-        if ($user->isStoreManager()) {
-            return $stockTransfer->from_store_id === $user->store_id
-                || $stockTransfer->to_store_id === $user->store_id;
+            return (int) optional($transfer->fromStore)->branch_id === (int) $user->branch_id;
         }
 
         return false;
     }
 
     /**
-     * Determine whether the user can dispatch a transfer.
-     *
-     * The source side must confirm that stock is leaving.
+     * The source-side user confirms the dispatch. Branch managers covering
+     * the source branch are the operational supervisors for that store, so
+     * they can dispatch as well as the source store manager.
      */
     public function dispatch(User $user, StockTransfer $transfer): bool
     {
         if (! $user->is_active) return false;
         if ($transfer->status !== 'pending') return false;
-
         if ($user->isAdmin()) return true;
 
         if ($user->isBranchManager()) {
-            return $transfer->fromStore->branch_id === $user->branch_id;
+            return (int) optional($transfer->fromStore)->branch_id === (int) $user->branch_id;
         }
 
         if ($user->isStoreManager()) {
-            return $transfer->from_store_id === $user->store_id;
+            return (int) $transfer->from_store_id === (int) $user->store_id;
         }
 
         return false;
     }
 
+    /**
+     * The destination-side user confirms the receipt. Branch managers
+     * covering the destination branch can receive on behalf of any store
+     * in that branch — matching how the dispatch side works.
+     */
     public function receive(User $user, StockTransfer $transfer): bool
     {
         if (! $user->is_active) return false;
         if ($transfer->status !== 'dispatched') return false;
-
         if ($user->isAdmin()) return true;
 
         if ($user->isBranchManager()) {
-            return $transfer->toStore->branch_id === $user->branch_id;
+            return (int) optional($transfer->toStore)->branch_id === (int) $user->branch_id;
         }
 
         if ($user->isStoreManager()) {
-            return $transfer->to_store_id === $user->store_id;
+            return (int) $transfer->to_store_id === (int) $user->store_id;
         }
 
         return false;
     }
 
-    /**
-     * Determine whether the user can delete a transfer.
-     *
-     * Only pending transfers may be deleted.
-     * Completed transfers are historical stock records.
-     */
-    public function delete(User $user, StockTransfer $stockTransfer): bool
+    public function delete(User $user, StockTransfer $transfer): bool
     {
-        if (! $user->is_active) {
-            return false;
-        }
-
-        if ($stockTransfer->status !== 'pending') {
-            return false;
-        }
-
-        if ($user->isAdmin()) {
-            return true;
-        }
+        if (! $user->is_active) return false;
+        if ($transfer->status !== 'pending') return false;
+        if ($user->isAdmin()) return true;
 
         if ($user->isBranchManager()) {
-            return $stockTransfer->fromStore->branch_id === $user->branch_id
-                || $stockTransfer->toStore->branch_id === $user->branch_id;
+            $fromBranchId = (int) optional($transfer->fromStore)->branch_id;
+            $toBranchId = (int) optional($transfer->toStore)->branch_id;
+            $userBranchId = (int) $user->branch_id;
+
+            return $fromBranchId === $userBranchId || $toBranchId === $userBranchId;
         }
 
         return false;
     }
 
-    /**
-     * Transfers are historical stock records and should not be restored.
-     */
-    public function restore(User $user, StockTransfer $stockTransfer): bool
+    public function restore(User $user, StockTransfer $transfer): bool
     {
         return false;
     }
 
-    /**
-     * Transfers are historical stock records and should never be
-     * permanently deleted.
-     */
-    public function forceDelete(User $user, StockTransfer $stockTransfer): bool
+    public function forceDelete(User $user, StockTransfer $transfer): bool
     {
         return false;
     }

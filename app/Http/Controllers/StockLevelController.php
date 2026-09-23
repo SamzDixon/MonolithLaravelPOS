@@ -21,7 +21,7 @@ class StockLevelController extends Controller
             ->join('products', 'products.id', '=', 'stock_levels.product_id')
             ->join('stores', 'stores.id', '=', 'stock_levels.store_id')
             ->select('stock_levels.*')
-            ->with(['store:id,name', 'product:id,name,sku,unit,reorder_level,cost_price']);
+            ->with(['store:id,name', 'product:id,name,sku,unit,reorder_level,cost_price,selling_price']);
 
         // Filter by store
         if ($storeId = $request->input('store_id')) {
@@ -58,6 +58,12 @@ class StockLevelController extends Controller
             ->selectRaw('COALESCE(SUM(stock_levels.quantity * products.cost_price), 0) as total')
             ->value('total');
 
+        $retailValue = StockLevel::query()
+            ->whereIn('stock_levels.store_id', $storeIds)
+            ->join('products', 'products.id', '=', 'stock_levels.product_id')
+            ->selectRaw('COALESCE(SUM(stock_levels.quantity * products.selling_price), 0) as total')
+            ->value('total');
+
         $totalUnits = StockLevel::whereIn('store_id', $storeIds)->sum('quantity');
 
         $lowStockCount = StockLevel::query()
@@ -75,6 +81,7 @@ class StockLevelController extends Controller
             'storeIds' => $storeIds,
             'summary' => [
                 'total_value' => (float) $totalValue,
+                'retail_value' => (float) $retailValue,
                 'total_units' => (int) $totalUnits,
                 'low_stock_count' => (int) $lowStockCount,
             ],
@@ -96,7 +103,7 @@ class StockLevelController extends Controller
             ->join('products', 'products.id', '=', 'stock_levels.product_id')
             ->join('stores', 'stores.id', '=', 'stock_levels.store_id')
             ->select('stock_levels.*')
-            ->with(['store:id,name', 'product:id,name,sku,unit,reorder_level,cost_price']);
+            ->with(['store:id,name', 'product:id,name,sku,unit,reorder_level,cost_price,selling_price']);
 
         if ($storeId = $request->input('store_id')) {
             if (in_array((int) $storeId, $storeIds, true)) {
@@ -133,6 +140,7 @@ class StockLevelController extends Controller
                 'quantity' => (int) $level->quantity,
                 'reorder_level' => (int) $level->product->reorder_level,
                 'cost_price' => (float) $level->product->cost_price,
+                'selling_price' => (float) $level->product->selling_price,
             ]),
         ]);
     }

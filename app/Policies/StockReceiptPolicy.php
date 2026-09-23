@@ -9,7 +9,7 @@ class StockReceiptPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->is_active;
+        return (bool) $user->is_active;
     }
 
     public function view(User $user, StockReceipt $receipt): bool
@@ -18,11 +18,11 @@ class StockReceiptPolicy
         if ($user->isAdmin()) return true;
 
         if ($user->isBranchManager()) {
-            return $receipt->store->branch_id === $user->branch_id;
+            return (int) optional($receipt->store)->branch_id === (int) $user->branch_id;
         }
 
         if ($user->isStoreManager()) {
-            return $receipt->store_id === $user->store_id;
+            return (int) $receipt->store_id === (int) $user->store_id;
         }
 
         return false;
@@ -30,20 +30,26 @@ class StockReceiptPolicy
 
     public function create(User $user): bool
     {
-        // Anyone who can see a store can receive stock into it.
-        // The store-scope check is in the FormRequest.
-        return $user->is_active
-            && ($user->isAdmin() || $user->isBranchManager() || $user->isStoreManager());
+        if (! $user->is_active) return false;
+
+        return $user->isAdmin()
+            || $user->isBranchManager()
+            || $user->isStoreManager();
     }
 
+    /**
+     * Reversing a receipt removes stock from the store. It's a supervisory
+     * action — the person who received the delivery shouldn't be the one
+     * undoing it. Branch managers can reverse receipts in their branch;
+     * admins can reverse anywhere.
+     */
     public function delete(User $user, StockReceipt $receipt): bool
     {
-        // Reversing a receipt is a supervisory action.
         if (! $user->is_active) return false;
         if ($user->isAdmin()) return true;
 
         if ($user->isBranchManager()) {
-            return $receipt->store->branch_id === $user->branch_id;
+            return (int) optional($receipt->store)->branch_id === (int) $user->branch_id;
         }
 
         return false;

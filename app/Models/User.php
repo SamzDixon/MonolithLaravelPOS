@@ -31,6 +31,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'branch_id' => 'integer',
+            'store_id' => 'integer',
         ];
     }
 

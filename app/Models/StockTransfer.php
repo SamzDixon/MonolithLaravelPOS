@@ -17,6 +17,11 @@ class StockTransfer extends Model
     ];
 
     protected $casts = [
+        'from_store_id' => 'integer',
+        'to_store_id' => 'integer',
+        'requested_by' => 'integer',
+        'dispatched_by' => 'integer',
+        'received_by' => 'integer',
         'dispatched_at' => 'datetime',
         'received_at' => 'datetime',
     ];

@@ -12,7 +12,10 @@ class Store extends Model
 
     protected $fillable = ['branch_id', 'name', 'code', 'is_active'];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = [
+        'is_active' => 'boolean',
+        'branch_id' => 'integer',
+    ];
 
     public function branch()
     {

@@ -30,7 +30,11 @@ class StockReceiptController extends Controller
 
         $receipts = StockReceipt::query()
             ->whereIn('store_id', $storeIds)
-            ->with(['supplier:id,name', 'store:id,name', 'user:id,name'])
+            ->with([
+                'supplier:id,name',
+                'store:id,name,branch_id',
+                'user:id,name',
+            ])
             ->withCount('items')
             ->latest('id')
             ->paginate(25);
@@ -105,7 +109,7 @@ class StockReceiptController extends Controller
 
         $receipt->load([
             'supplier:id,name,contact_person,phone,email',
-            'store:id,name',
+            'store:id,name,branch_id',
             'user:id,name',
             'items.product:id,name,sku,unit',
         ]);
