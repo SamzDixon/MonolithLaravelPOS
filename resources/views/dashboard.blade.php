@@ -64,15 +64,17 @@
                         </div>
                     </div>
 
-                    <div class="bg-white border border-slate-200 rounded p-4">
+                    <a href="{{ route('stock-levels.index', ['low_stock' => 1]) }}"
+                       class="block bg-white border border-slate-200 rounded p-4 hover:border-blue-300 transition">
                         <div class="text-xs uppercase tracking-wide text-slate-500">Low Stock</div>
                         <div class="mt-2 text-xl font-semibold {{ $summary['low_stock_count'] > 0 ? 'text-amber-600' : 'text-emerald-600' }}">
                             {{ $summary['low_stock_count'] }}
                         </div>
                         <div class="text-xs text-slate-500 mt-1">items at/below reorder</div>
-                    </div>
+                    </a>
 
-                    <div class="bg-white border border-slate-200 rounded p-4">
+                    <a href="{{ route('transfers.index') }}"
+                       class="block bg-white border border-slate-200 rounded p-4 hover:border-blue-300 transition">
                         <div class="text-xs uppercase tracking-wide text-slate-500">Open Transfers</div>
                         <div class="mt-2 text-xl font-semibold {{ ($summary['pending_transfers'] + $summary['dispatched_transfers']) > 0 ? 'text-blue-700' : 'text-slate-900' }}">
                             {{ $summary['pending_transfers'] + $summary['dispatched_transfers'] }}
@@ -83,7 +85,7 @@
                                 · {{ $summary['dispatched_transfers'] }} in transit
                             @endif
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 {{-- ============================================================= --}}
@@ -91,17 +93,17 @@
                 {{-- ============================================================= --}}
                 @if ($user->isAdmin())
                     <div>
-                        <h3 class="text-sm font-semibold text-slate-700 mb-3">Branches</h3>
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-sm font-semibold text-slate-700">Branches</h3>
+                            <a href="{{ route('branches.index') }}"
+                               class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
+                        </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             @foreach ($branches as $branch)
                                 <div class="bg-white border border-slate-200 rounded p-5">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <div class="font-semibold text-slate-900">{{ $branch['name'] }}</div>
-                                            <div class="text-xs text-slate-500 mt-0.5">
-                                                {{ $branch['location'] ?? '—' }} · {{ $branch['store_count'] }} {{ Str::plural('store', $branch['store_count']) }}
-                                            </div>
-                                        </div>
+                                    <div class="font-semibold text-slate-900">{{ $branch['name'] }}</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">
+                                        {{ $branch['location'] ?? '—' }} · {{ $branch['store_count'] }} {{ Str::plural('store', $branch['store_count']) }}
                                     </div>
                                     <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
                                         <div>
@@ -128,7 +130,11 @@
                 {{-- ============================================================= --}}
                 @if ($user->isBranchManager())
                     <div>
-                        <h3 class="text-sm font-semibold text-slate-700 mb-3">Stores in your branch</h3>
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-sm font-semibold text-slate-700">Stores in your branch</h3>
+                            <a href="{{ route('stores.index') }}"
+                               class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
+                        </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             @forelse ($stores as $store)
                                 <div class="bg-white border border-slate-200 rounded p-5">
@@ -161,7 +167,7 @@
                 @endif
 
                 {{-- ============================================================= --}}
-                {{-- STORE MANAGER: today/week/month performance --}}
+                {{-- STORE MANAGER: performance summary --}}
                 {{-- ============================================================= --}}
                 @if ($user->isStoreManager())
                     <div class="bg-white border border-slate-200 rounded p-5">
@@ -193,7 +199,8 @@
                 @endif
 
                 {{-- ============================================================= --}}
-                {{-- Low stock + Active transfers (admin, branch manager) --}}
+                {{-- Low stock + Active transfers --}}
+                {{-- Admin: business-wide; Branch manager: their branch --}}
                 {{-- ============================================================= --}}
                 @if ($user->isAdmin() || $user->isBranchManager())
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -202,25 +209,19 @@
                         <div class="bg-white border border-slate-200 rounded">
                             <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
                                 <div class="text-sm font-semibold text-slate-700">Low Stock Alerts</div>
-                                @can('viewAny', App\Models\StockLevel::class)
-                                    <a href="{{ route('stock-levels.index', ['low_stock' => 1]) }}"
-                                       class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                                @endcan
+                                <a href="{{ route('stock-levels.index', ['low_stock' => 1]) }}"
+                                   class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
                             </div>
                             <div class="divide-y divide-slate-100">
                                 @forelse ($lowStockItems as $item)
-                                    @php
-                                        $isEmpty = $item->quantity === 0;
-                                    @endphp
+                                    @php $isEmpty = $item->quantity === 0; @endphp
                                     <div class="px-5 py-3 flex items-center justify-between gap-4">
                                         <div class="min-w-0">
                                             <div class="text-sm font-medium text-slate-800 truncate">
                                                 {{ $item->product->name }}
                                                 <span class="text-slate-400 text-xs ml-1">{{ $item->product->sku }}</span>
                                             </div>
-                                            <div class="text-xs text-slate-500 mt-0.5">
-                                                {{ $item->store->name }}
-                                            </div>
+                                            <div class="text-xs text-slate-500 mt-0.5">{{ $item->store->name }}</div>
                                         </div>
                                         <div class="text-right whitespace-nowrap">
                                             <span class="text-sm font-semibold {{ $isEmpty ? 'text-red-600' : 'text-amber-600' }}">
@@ -241,10 +242,8 @@
                         <div class="bg-white border border-slate-200 rounded">
                             <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
                                 <div class="text-sm font-semibold text-slate-700">Transfers In Motion</div>
-                                @can('viewAny', App\Models\StockTransfer::class)
-                                    <a href="{{ route('transfers.index') }}"
-                                       class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                                @endcan
+                                <a href="{{ route('transfers.index') }}"
+                                   class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
                             </div>
                             <div class="divide-y divide-slate-100">
                                 @forelse ($activeTransfers as $transfer)
@@ -262,9 +261,7 @@
                                                 <div class="text-sm font-medium text-slate-800 truncate">
                                                     {{ $transfer->fromStore->name }} → {{ $transfer->toStore->name }}
                                                 </div>
-                                                <div class="text-xs text-slate-500 mt-0.5 font-mono">
-                                                    {{ $transfer->reference }}
-                                                </div>
+                                                <div class="text-xs text-slate-500 mt-0.5 font-mono">{{ $transfer->reference }}</div>
                                             </div>
                                             <span class="inline-block px-2 py-0.5 text-xs font-medium border rounded whitespace-nowrap {{ $classes }}">
                                                 {{ $label }}
@@ -282,25 +279,20 @@
                 @endif
 
                 {{-- ============================================================= --}}
-                {{-- STORE MANAGER: low stock + inbound/outbound --}}
+                {{-- STORE MANAGER: low stock + transfers --}}
                 {{-- ============================================================= --}}
                 @if ($user->isStoreManager())
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                        {{-- Low stock for their store --}}
                         <div class="bg-white border border-slate-200 rounded">
                             <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
                                 <div class="text-sm font-semibold text-slate-700">Low Stock in Your Store</div>
-                                @can('viewAny', App\Models\StockLevel::class)
-                                    <a href="{{ route('stock-levels.index', ['low_stock' => 1]) }}"
-                                       class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                                @endcan
+                                <a href="{{ route('stock-levels.index', ['low_stock' => 1]) }}"
+                                   class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
                             </div>
                             <div class="divide-y divide-slate-100">
                                 @forelse ($lowStockItems as $item)
-                                    @php
-                                        $isEmpty = $item->quantity === 0;
-                                    @endphp
+                                    @php $isEmpty = $item->quantity === 0; @endphp
                                     <div class="px-5 py-3 flex items-center justify-between gap-4">
                                         <div class="text-sm font-medium text-slate-800 truncate">
                                             {{ $item->product->name }}
@@ -321,17 +313,14 @@
                             </div>
                         </div>
 
-                        {{-- Transfers touching this store --}}
                         <div class="bg-white border border-slate-200 rounded">
                             <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
                                 <div class="text-sm font-semibold text-slate-700">Transfers</div>
-                                @can('viewAny', App\Models\StockTransfer::class)
-                                    <a href="{{ route('transfers.index') }}"
-                                       class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                                @endcan
+                                <a href="{{ route('transfers.index') }}"
+                                   class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
                             </div>
                             <div class="divide-y divide-slate-100">
-                                @forelse ($incomingTransfers as $transfer)
+                                @foreach ($incomingTransfers as $transfer)
                                     <a href="{{ route('transfers.show', $transfer) }}"
                                        class="block px-5 py-3 hover:bg-slate-50">
                                         <div class="flex items-center justify-between gap-3">
@@ -350,11 +339,9 @@
                                             </span>
                                         </div>
                                     </a>
-                                @empty
-                                    {{-- nothing incoming --}}
-                                @endforelse
+                                @endforeach
 
-                                @forelse ($outgoingTransfers as $transfer)
+                                @foreach ($outgoingTransfers as $transfer)
                                     <a href="{{ route('transfers.show', $transfer) }}"
                                        class="block px-5 py-3 hover:bg-slate-50">
                                         <div class="flex items-center justify-between gap-3">
@@ -373,9 +360,7 @@
                                             </span>
                                         </div>
                                     </a>
-                                @empty
-                                    {{-- nothing outgoing --}}
-                                @endforelse
+                                @endforeach
 
                                 @if ($incomingTransfers->isEmpty() && $outgoingTransfers->isEmpty())
                                     <div class="px-5 py-8 text-center text-sm text-slate-500">
@@ -388,104 +373,50 @@
                 @endif
 
                 {{-- ============================================================= --}}
-                {{-- Recent activity (admin: sales + movements; others: movements) --}}
+                {{-- Recent activity: sales + movements --}}
                 {{-- ============================================================= --}}
-                @if ($user->isAdmin())
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                        {{-- Recent sales --}}
-                        <div class="bg-white border border-slate-200 rounded">
-                            <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
-                                <div class="text-sm font-semibold text-slate-700">Recent Sales</div>
-                                <a href="{{ route('sales.index') }}"
-                                   class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                            </div>
-                            <table class="w-full text-sm">
-                                <tbody>
-                                    @forelse ($recentSales as $sale)
-                                        <tr class="border-t border-slate-100">
-                                            <td class="px-5 py-2">
-                                                <a href="{{ route('sales.show', $sale) }}"
-                                                   class="font-mono text-xs text-blue-700 hover:text-blue-900">
-                                                    {{ $sale->reference }}
-                                                </a>
-                                                <div class="text-xs text-slate-500 mt-0.5">
-                                                    {{ $sale->store->name }} · {{ $sale->user->name }}
-                                                </div>
-                                            </td>
-                                            <td class="px-5 py-2 text-right">
-                                                <div class="font-medium text-slate-900">KES {{ number_format($sale->total_amount, 2) }}</div>
-                                                <div class="text-xs text-slate-500">{{ $sale->items_count }} items</div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td class="px-5 py-8 text-center text-sm text-slate-500">No sales yet.</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
+                    {{-- Recent sales --}}
+                    <div class="bg-white border border-slate-200 rounded">
+                        <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
+                            <div class="text-sm font-semibold text-slate-700">Recent Sales</div>
+                            <a href="{{ route('sales.index') }}"
+                               class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
                         </div>
-
-                        {{-- Recent movements --}}
-                        <div class="bg-white border border-slate-200 rounded">
-                            <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
-                                <div class="text-sm font-semibold text-slate-700">Recent Stock Movements</div>
-                                @can('viewAny', App\Models\StockMovement::class)
-                                    <a href="{{ route('stock-movements.index') }}"
-                                       class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                                @endcan
-                            </div>
-                            <table class="w-full text-sm">
-                                <tbody>
-                                    @forelse ($recentMovements as $movement)
-                                        @php
-                                            $typeLabels = [
-                                                'opening' => 'Opening',
-                                                'receipt' => 'Receipt',
-                                                'sale' => 'Sale',
-                                                'transfer_in' => 'Transfer in',
-                                                'transfer_out' => 'Transfer out',
-                                                'adjustment' => 'Adjustment',
-                                            ];
-                                        @endphp
-                                        <tr class="border-t border-slate-100">
-                                            <td class="px-5 py-2">
-                                                <div class="text-slate-800 truncate">
-                                                    {{ $movement->product->name }}
-                                                    <span class="text-slate-400 text-xs ml-1">{{ $movement->product->sku }}</span>
-                                                </div>
-                                                <div class="text-xs text-slate-500 mt-0.5">
-                                                    {{ $typeLabels[$movement->type] ?? $movement->type }}
-                                                    · {{ $movement->store->name }}
-                                                </div>
-                                            </td>
-                                            <td class="px-5 py-2 text-right whitespace-nowrap">
-                                                <div class="font-medium {{ $movement->quantity_delta > 0 ? 'text-emerald-600' : 'text-red-600' }}">
-                                                    {{ $movement->quantity_delta > 0 ? '+' : '' }}{{ number_format($movement->quantity_delta) }}
-                                                </div>
-                                                <div class="text-xs text-slate-500">{{ $movement->created_at->diffForHumans() }}</div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td class="px-5 py-8 text-center text-sm text-slate-500">No movements yet.</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
+                        <table class="w-full text-sm">
+                            <tbody>
+                                @forelse ($recentSales as $sale)
+                                    <tr class="border-t border-slate-100 hover:bg-slate-50">
+                                        <td class="px-5 py-2">
+                                            <a href="{{ route('sales.show', $sale) }}"
+                                               class="font-mono text-xs text-blue-700 hover:text-blue-900">
+                                                {{ $sale->reference }}
+                                            </a>
+                                            <div class="text-xs text-slate-500 mt-0.5">
+                                                {{ $sale->store->name }} · {{ $sale->user->name }}
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-2 text-right">
+                                            <div class="font-medium text-slate-900">KES {{ number_format($sale->total_amount, 2) }}</div>
+                                            <div class="text-xs text-slate-500">{{ $sale->items_count }} items</div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td class="px-5 py-8 text-center text-sm text-slate-500">No sales yet.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-                @endif
 
-                @if ($user->isBranchManager())
+                    {{-- Recent movements --}}
                     <div class="bg-white border border-slate-200 rounded">
                         <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
                             <div class="text-sm font-semibold text-slate-700">Recent Stock Movements</div>
-                            @can('viewAny', App\Models\StockMovement::class)
-                                <a href="{{ route('stock-movements.index') }}"
-                                   class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                            @endcan
+                            <a href="{{ route('stock-movements.index') }}"
+                               class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
                         </div>
                         <table class="w-full text-sm">
                             <tbody>
@@ -500,120 +431,34 @@
                                             'adjustment' => 'Adjustment',
                                         ];
                                     @endphp
-                                    <tr class="border-t border-slate-100">
-                                        <td class="px-5 py-2 text-slate-500 text-xs whitespace-nowrap">
-                                            {{ $movement->created_at->diffForHumans() }}
+                                    <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
+                                        onclick="window.location='{{ route('stock-movements.index', ['search' => $movement->product->sku]) }}'">
+                                        <td class="px-5 py-2">
+                                            <div class="text-slate-800 truncate">
+                                                {{ $movement->product->name }}
+                                                <span class="text-slate-400 text-xs ml-1">{{ $movement->product->sku }}</span>
+                                            </div>
+                                            <div class="text-xs text-slate-500 mt-0.5">
+                                                {{ $typeLabels[$movement->type] ?? $movement->type }}
+                                                · {{ $movement->store->name }}
+                                            </div>
                                         </td>
-                                        <td class="px-5 py-2 text-slate-700">{{ $movement->store->name }}</td>
-                                        <td class="px-5 py-2 text-slate-800">
-                                            {{ $movement->product->name }}
-                                            <span class="text-slate-400 text-xs ml-1">{{ $movement->product->sku }}</span>
+                                        <td class="px-5 py-2 text-right whitespace-nowrap">
+                                            <div class="font-medium {{ $movement->quantity_delta > 0 ? 'text-emerald-600' : 'text-red-600' }}">
+                                                {{ $movement->quantity_delta > 0 ? '+' : '' }}{{ number_format($movement->quantity_delta) }}
+                                            </div>
+                                            <div class="text-xs text-slate-500">{{ $movement->created_at->diffForHumans() }}</div>
                                         </td>
-                                        <td class="px-5 py-2 text-slate-500 text-xs">
-                                            {{ $typeLabels[$movement->type] ?? $movement->type }}
-                                        </td>
-                                        <td class="px-5 py-2 text-right font-medium {{ $movement->quantity_delta > 0 ? 'text-emerald-600' : 'text-red-600' }}">
-                                            {{ $movement->quantity_delta > 0 ? '+' : '' }}{{ number_format($movement->quantity_delta) }}
-                                        </td>
-                                        <td class="px-5 py-2 text-slate-600 text-xs">{{ $movement->user->name }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-500">No movements yet.</td>
+                                        <td class="px-5 py-8 text-center text-sm text-slate-500">No movements yet.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                @endif
-
-                @if ($user->isStoreManager())
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                        {{-- Recent sales --}}
-                        <div class="bg-white border border-slate-200 rounded">
-                            <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
-                                <div class="text-sm font-semibold text-slate-700">Recent Sales</div>
-                                <a href="{{ route('sales.index') }}"
-                                   class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                            </div>
-                            <table class="w-full text-sm">
-                                <tbody>
-                                    @forelse ($recentSales as $sale)
-                                        <tr class="border-t border-slate-100">
-                                            <td class="px-5 py-2">
-                                                <a href="{{ route('sales.show', $sale) }}"
-                                                   class="font-mono text-xs text-blue-700 hover:text-blue-900">
-                                                    {{ $sale->reference }}
-                                                </a>
-                                                <div class="text-xs text-slate-500 mt-0.5">
-                                                    {{ $sale->created_at->diffForHumans() }} · {{ $sale->user->name }}
-                                                </div>
-                                            </td>
-                                            <td class="px-5 py-2 text-right">
-                                                <div class="font-medium text-slate-900">KES {{ number_format($sale->total_amount, 2) }}</div>
-                                                <div class="text-xs text-slate-500">{{ $sale->items_count }} items</div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td class="px-5 py-8 text-center text-sm text-slate-500">No sales recorded yet.</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {{-- Recent movements --}}
-                        <div class="bg-white border border-slate-200 rounded">
-                            <div class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
-                                <div class="text-sm font-semibold text-slate-700">Recent Stock Movements</div>
-                                @can('viewAny', App\Models\StockMovement::class)
-                                    <a href="{{ route('stock-movements.index') }}"
-                                       class="text-xs text-blue-700 hover:text-blue-900 font-medium">View all →</a>
-                                @endcan
-                            </div>
-                            <table class="w-full text-sm">
-                                <tbody>
-                                    @forelse ($recentMovements as $movement)
-                                        @php
-                                            $typeLabels = [
-                                                'opening' => 'Opening',
-                                                'receipt' => 'Receipt',
-                                                'sale' => 'Sale',
-                                                'transfer_in' => 'Transfer in',
-                                                'transfer_out' => 'Transfer out',
-                                                'adjustment' => 'Adjustment',
-                                            ];
-                                        @endphp
-                                        <tr class="border-t border-slate-100">
-                                            <td class="px-5 py-2">
-                                                <div class="text-slate-800 truncate">
-                                                    {{ $movement->product->name }}
-                                                    <span class="text-slate-400 text-xs ml-1">{{ $movement->product->sku }}</span>
-                                                </div>
-                                                <div class="text-xs text-slate-500 mt-0.5">
-                                                    {{ $typeLabels[$movement->type] ?? $movement->type }}
-                                                    · {{ $movement->created_at->diffForHumans() }}
-                                                </div>
-                                            </td>
-                                            <td class="px-5 py-2 text-right whitespace-nowrap">
-                                                <span class="font-medium {{ $movement->quantity_delta > 0 ? 'text-emerald-600' : 'text-red-600' }}">
-                                                    {{ $movement->quantity_delta > 0 ? '+' : '' }}{{ number_format($movement->quantity_delta) }}
-                                                </span>
-                                                <div class="text-xs text-slate-500">{{ $movement->user->name }}</div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td class="px-5 py-8 text-center text-sm text-slate-500">No movements yet.</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                @endif
+                </div>
 
             @endif
         </div>
