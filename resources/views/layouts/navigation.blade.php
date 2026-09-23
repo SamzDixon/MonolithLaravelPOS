@@ -36,7 +36,6 @@
         </a>
 
         {{-- Stock (expandable) --}}
-        @if (auth()->user()->isAdmin() || auth()->user()->isBranchManager())
             <div>
                 <button type="button" @click="openStock = !openStock"
                         class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded transition {{ request()->routeIs('stock-*') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800/60 hover:text-white' }}">
@@ -67,9 +66,12 @@
                        class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('stock-movements.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
                         Movement History
                     </a>
+                    <a href="{{ route('suppliers.index') }}"
+                        class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('suppliers.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
+                            Suppliers
+                    </a>
                 </div>
             </div>
-        @endif
 
         {{-- Sales (expandable) --}}
         <div>
@@ -154,7 +156,7 @@
                     <a href="{{ route('suppliers.index') }}"
                         class="block px-3 py-1.5 rounded text-sm transition {{ request()->routeIs('suppliers.*') ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/60 hover:text-white' }}">
                             Suppliers
-                     </a>
+                    </a>
                 </div>
             </div>
         @endif
