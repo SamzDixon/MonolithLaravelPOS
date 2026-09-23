@@ -51,13 +51,24 @@ class StockTransferController extends Controller
 
         $user = $request->user();
 
-        $fromStores = $user->isAdmin()
-            ? Store::where('is_active', true)->orderBy('name')->get(['id', 'name'])
-            : Store::where('branch_id', $user->branch_id)->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        // Branch managers can only see and move stock within their own
+        // branch. Admin sees the whole business. This scope is enforced
+        // again in StoreTransferRequest so a hand-crafted POST cannot
+        // bypass it.
+        $storeQuery = Store::where('is_active', true)->orderBy('name');
 
-        $toStores = Store::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        if ($user->isBranchManager()) {
+            $storeQuery->where('branch_id', $user->branch_id);
+        }
 
-        return view('transfers.create', compact('fromStores', 'toStores'));
+        $stores = $storeQuery->get(['id', 'name']);
+
+        // Same list for both sides — the client-side JS filters the
+        // destination to exclude whatever's picked as source.
+        return view('transfers.create', [
+            'fromStores' => $stores,
+            'toStores' => $stores,
+        ]);
     }
 
     public function store(StoreTransferRequest $request): RedirectResponse

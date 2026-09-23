@@ -11,11 +11,28 @@ class StoreTransferRequest extends FormRequest
     {
         $user = $this->user();
 
-        if (! $user) {
+        if (! $user || ! $user->is_active) {
             return false;
         }
 
-        return $user->isAdmin() || $user->isBranchManager();
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isBranchManager()) {
+            // Both source and destination must be in the manager's branch.
+            $from = Store::find($this->input('from_store_id'));
+            $to = Store::find($this->input('to_store_id'));
+
+            if (! $from || ! $to) {
+                return false;
+            }
+
+            return (int) $from->branch_id === (int) $user->branch_id
+                && (int) $to->branch_id === (int) $user->branch_id;
+        }
+
+        return false;
     }
 
     public function rules(): array
@@ -34,12 +51,17 @@ class StoreTransferRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $user = $this->user();
+            if (! $user->isBranchManager()) return;
 
-            if ($user->isBranchManager()) {
-                $from = Store::find($this->input('from_store_id'));
-                if ($from && $from->branch_id !== $user->branch_id) {
-                    $validator->errors()->add('from_store_id', 'You can only transfer stock from your own branch.');
-                }
+            $from = Store::find($this->input('from_store_id'));
+            $to = Store::find($this->input('to_store_id'));
+
+            if ($from && (int) $from->branch_id !== (int) $user->branch_id) {
+                $validator->errors()->add('from_store_id', 'You can only transfer stock from your own branch.');
+            }
+
+            if ($to && (int) $to->branch_id !== (int) $user->branch_id) {
+                $validator->errors()->add('to_store_id', 'You can only transfer stock into your own branch.');
             }
         });
     }

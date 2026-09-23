@@ -8,6 +8,7 @@
     <script>
     window.transferCreateConfig = {
         stockEndpointTemplate: {{ Illuminate\Support\Js::from(route('transfers.stock-for-store', ['store' => '__STORE__'])) }},
+        stores: {{ Illuminate\Support\Js::from($toStores) }},
     };
     </script>
 
@@ -320,6 +321,23 @@
                 }
             }
 
+            function refreshDestinationOptions() {
+                const fromId = $('#from_store_id').val();
+                const $to = $('#to_store_id');
+                const currentTo = $to.val();
+
+                // Rebuild the destination list, excluding the selected source.
+                let html = '<option value="">Select destination…</option>';
+                const options = window.transferCreateConfig.stores || [];
+
+                options.forEach(s => {
+                    if (String(s.id) === String(fromId)) return;
+                    html += '<option value="' + s.id + '"' + (String(s.id) === String(currentTo) ? ' selected' : '') + '>' + s.name + '</option>';
+                });
+
+                $to.html(html);
+            }
+
             $('#from_store_id').on('change', function () {
                 // Clear items — they belong to the previous source store.
                 $('#items-body').empty().append(
@@ -328,6 +346,7 @@
                 state.rowIndex = 0;
                 $('#stock-warning').addClass('hidden');
 
+                refreshDestinationOptions();
                 loadStock($(this).val());
             });
 
