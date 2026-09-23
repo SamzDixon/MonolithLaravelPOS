@@ -16,6 +16,7 @@
     </x-slot>
 
     @php
+    
         $canReceive = $transfer->status === 'dispatched' && auth()->user()->can('receive', $transfer);
     @endphp
 

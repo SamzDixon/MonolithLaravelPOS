@@ -34,7 +34,11 @@ class StockTransferController extends Controller
                 $q->whereIn('from_store_id', $storeIds)
                   ->orWhereIn('to_store_id', $storeIds);
             })
-            ->with(['fromStore:id,name', 'toStore:id,name', 'requestedBy:id,name'])
+            ->with([
+                'fromStore:id,name,branch_id',
+                'toStore:id,name,branch_id',
+                'requestedBy:id,name',
+            ])
             ->latest('id')
             ->paginate(25);
 
@@ -92,8 +96,8 @@ class StockTransferController extends Controller
         $this->authorize('view', $transfer);
 
         $transfer->load([
-            'fromStore:id,name',
-            'toStore:id,name',
+            'fromStore:id,name,branch_id',
+            'toStore:id,name,branch_id',
             'requestedBy:id,name',
             'dispatchedBy:id,name',
             'receivedBy:id,name',
