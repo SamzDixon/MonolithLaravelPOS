@@ -21,7 +21,7 @@
     <body class="font-sans antialiased bg-slate-100">
         <div x-data="{
                 sidebarOpen: false,
-                openStock: {{ request()->routeIs('stock-levels.*') || request()->routeIs('stock-movements.*') || request()->routeIs('receipts.*') ? 'true' : 'false' }},
+                openStock: {{ request()->routeIs('stock-*') || request()->routeIs('receipts.*') || request()->routeIs('suppliers.*') ? 'true' : 'false' }},
                 openSales: {{ request()->routeIs('sales.*') ? 'true' : 'false' }},
                 openSetup: {{ request()->routeIs('branches.*') || request()->routeIs('stores.*') || request()->routeIs('products.*')|| request()->routeIs('suppliers.*') || request()->routeIs('users.*') ? 'true' : 'false' }}
             }"

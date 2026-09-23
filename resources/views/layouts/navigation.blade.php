@@ -38,7 +38,7 @@
         {{-- Stock (expandable) --}}
             <div>
                 <button type="button" @click="openStock = !openStock"
-                        class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded transition {{ request()->routeIs('stock-*') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800/60 hover:text-white' }}">
+                        class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded transition {{ request()->routeIs('stock-*') || request()->routeIs('receipts.*') || request()->routeIs('suppliers.*') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800/60 hover:text-white' }}">
                     <span class="flex items-center gap-3">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
