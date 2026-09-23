@@ -18,6 +18,7 @@
     <script>
     window.salesIndexConfig = {
         endpoint: {{ Illuminate\Support\Js::from(route('sales.search')) }},
+        pageUrl: {{ Illuminate\Support\Js::from(route('sales.index')) }},
         filters: {{ Illuminate\Support\Js::from([
             'store_id' => (string) ($filters['store_id'] ?? ''),
             'search' => (string) ($filters['search'] ?? ''),
@@ -50,15 +51,18 @@
                 this.abortController = new AbortController();
                 this.loading = true;
 
-                const url = new URL(this.endpoint, window.location.origin);
+                const fetchUrl = new URL(this.endpoint, window.location.origin);
+                const pageUrl = new URL(this.pageUrl, window.location.origin);
+
                 Object.entries(this.filters).forEach(([k, v]) => {
                     if (v !== '' && v !== null && v !== false && v !== undefined) {
-                        url.searchParams.set(k, v);
+                        fetchUrl.searchParams.set(k, v);
+                        pageUrl.searchParams.set(k, v);
                     }
                 });
-                window.history.replaceState({}, '', url.toString());
+                window.history.replaceState({}, '', pageUrl.toString());
 
-                fetch(url, {
+                fetch(fetchUrl, {
                     headers: { 'Accept': 'application/json' },
                     signal: this.abortController.signal,
                 })

@@ -1,6 +1,6 @@
 @once
 <script>
-function liveFilter({ endpoint, initialFilters, immediateKeys = [], debounceMs = 300 }) {
+function liveFilter({ endpoint, pageUrl, initialFilters, immediateKeys = [], debounceMs = 300 }) {
     return {
         filters: { ...initialFilters },
         loading: false,
@@ -9,6 +9,7 @@ function liveFilter({ endpoint, initialFilters, immediateKeys = [], debounceMs =
         timers: {},
         immediateKeys: immediateKeys,
         endpoint: endpoint,
+        pageUrl: pageUrl,
         debounceMs: debounceMs,
 
         init() {
@@ -35,17 +36,23 @@ function liveFilter({ endpoint, initialFilters, immediateKeys = [], debounceMs =
             this.abortController = new AbortController();
             this.loading = true;
 
-            const url = new URL(this.endpoint, window.location.origin);
+            // Two URLs: one for the fetch (JSON endpoint), one for the browser bar
+            // (the human-readable page). If we pushed the endpoint URL, a refresh
+            // would hit the JSON route and render raw data.
+            const fetchUrl = new URL(this.endpoint, window.location.origin);
+            const pageUrl = new URL(this.pageUrl, window.location.origin);
+
             Object.entries(this.filters).forEach(([k, v]) => {
                 if (v !== '' && v !== null && v !== false && v !== undefined) {
-                    url.searchParams.set(k, v);
+                    fetchUrl.searchParams.set(k, v);
+                    pageUrl.searchParams.set(k, v);
                 }
             });
 
-            // Update browser URL so refresh and back/forward still work.
-            window.history.replaceState({}, '', url.toString());
+            // Browser bar reflects the page URL with filters, not the JSON endpoint.
+            window.history.replaceState({}, '', pageUrl.toString());
 
-            fetch(url, {
+            fetch(fetchUrl, {
                 headers: { 'Accept': 'application/json' },
                 signal: this.abortController.signal,
             })

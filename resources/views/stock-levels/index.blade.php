@@ -8,8 +8,9 @@
     @include('components.live-filter')
 
     <script>
-    window.stockLevelsConfig = {
+    window.stockLevelsConfig = { 
         endpoint: {{ Illuminate\Support\Js::from(route('stock-levels.search')) }},
+        pageUrl: {{ Illuminate\Support\Js::from(route('stock-levels.index')) }},
         filters: {{ Illuminate\Support\Js::from([
             'store_id' => (string) ($filters['store_id'] ?? ''),
             'search' => (string) ($filters['search'] ?? ''),
@@ -23,6 +24,7 @@
             ...liveFilter({
                 endpoint: config.endpoint,
                 initialFilters: config.filters,
+                pageUrl: config.pageUrl,
                 immediateKeys: ['store_id', 'low_stock'],
             }),
 

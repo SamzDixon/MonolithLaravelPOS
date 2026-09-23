@@ -10,6 +10,7 @@
     <script>
     window.stockMovementsConfig = {
         endpoint: {{ Illuminate\Support\Js::from(route('stock-movements.search')) }},
+        pageUrl: {{ Illuminate\Support\Js::from(route('stock-movements.index')) }},
         filters: {{ Illuminate\Support\Js::from([
             'store_id' => (string) ($filters['store_id'] ?? ''),
             'type' => (string) ($filters['type'] ?? ''),
@@ -24,6 +25,7 @@
         return {
             ...liveFilter({
                 endpoint: config.endpoint,
+                pageUrl: config.pageUrl,
                 initialFilters: config.filters,
                 immediateKeys: ['store_id', 'type', 'from', 'to'],
             }),
