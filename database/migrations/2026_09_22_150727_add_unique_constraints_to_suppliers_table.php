@@ -9,16 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('suppliers', function (Blueprint $table) {
-            // Only add the name unique if it doesn't already exist. Wrap in a
-            // try/catch so a pre-existing constraint doesn't fail the migration.
+            // Name unique was already declared in create_suppliers_table;
             try {
-                $table->unique('name', 'suppliers_name_unique');
+                $table->unique('email', 'suppliers_email_unique');
             } catch (\Throwable $e) {
-                // Constraint already exists — nothing to do.
+                // Already exists.
             }
 
-            $table->unique('email', 'suppliers_email_unique');
-            $table->unique('phone', 'suppliers_phone_unique');
+            try {
+                $table->unique('phone', 'suppliers_phone_unique');
+            } catch (\Throwable $e) {
+                // Already exists.
+            }
         });
     }
 
